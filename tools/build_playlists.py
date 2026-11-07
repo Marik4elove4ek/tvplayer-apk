@@ -76,7 +76,7 @@ def best(pairs):
         out[key] = dict(s, group=g)
     return list(out.values())
 
-tv, music, mine = [], [], []
+tv, music, mine, kino = [], [], [], []
 for s in streams:
     c = ch.get(s['cid'], {})
     if not usable(s, c): continue
@@ -84,6 +84,9 @@ for s in streams:
     # Отдельно попросил Марк: VIVA Russia и City TV (Болгария)
     if s['cid'] in ('VIVARussia.ru', 'CityTV.bg'):
         mine.append(('Музыка', s))
+    # Кино и сериалы на русском (переведённые фильмы) — по стране канала
+    if ('movies' in cats or 'series' in cats) and 'rus' in L:
+        kino.append(('🎬 ' + ('Россия' if country == 'RU' else COUNTRY_RU.get(country, cname.get(country, country or 'Разное'))), s))
     if 'music' in cats and country not in ASIA_FAR:
         g = RU.get(country) or ('Латинская Америка' if country in LAT else 'Арабские' if country in ARAB else 'Другие страны')
         music.append(('🎵 ' + g, s))
@@ -97,7 +100,7 @@ for s in streams:
     if 'rus' in L and country and country != 'RU' and country not in ASIA_FAR:
         tv.append(('На русском · ' + COUNTRY_RU.get(country, cname.get(country, country)), s))
 
-tv, music, mine = best(tv), best(music), best(mine)
+tv, music, mine, kino = best(tv), best(music), best(mine), best(kino)
 
 # Проверка: канал отвечает за 5 секунд и отдаёт поток (а не ошибку или страницу)
 UA = 'VLC/3.0.20 LibVLC/3.0.20'
@@ -115,7 +118,7 @@ def alive(url):
     except Exception:
         return False
 
-urls = {s['url'] for s in tv + music + mine}
+urls = {s['url'] for s in tv + music + mine + kino}
 with cf.ThreadPoolExecutor(64) as ex:
     ok = dict(zip(urls, ex.map(alive, urls)))
 print('проверено', len(urls), 'работают', sum(ok.values()))
@@ -144,3 +147,4 @@ write('tv.m3u', tv, ['Израиль', 'Музыка · Россия', 'Музы
 write('music.m3u', music, ['🎵 ' + x for x in ['Россия', 'Украина', 'Беларусь', 'Казахстан', 'Израиль', 'Болгария', 'Греция', 'Турция',
       'Армения', 'Грузия', 'Азербайджан', 'Великобритания', 'США', 'Канада', 'Германия', 'Франция', 'Италия', 'Испания']])
 write('muzyka.m3u', mine, ['Музыка'], keep_always=True)
+write('kino.m3u', kino, ['🎬 Россия', '🎬 Украина', '🎬 Беларусь', '🎬 Казахстан'])
