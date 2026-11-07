@@ -203,27 +203,31 @@ if os.path.exists(f'{OUT}/picks.json'):
 # Папки в общем файле — крупные: Израиль, На русском, Кино, Музыка (Марк попросил собрать всё вместе).
 # «Моя музыка» (VIVA Russia, City TV) — первой в папке «Музыка»
 # Марк собрал отдельную папку «Познавательные»
+STAY_RUSSIAN = {'Belarus3.by'}
 COGNITIVE = {'FunBoxUHD.nl', 'GlazamiTurista.ru', 'RTGint.ru', 'RTGTV.ru', 'Vkus.ru', 'NashaTema.ru'}
 
 def big(s):
+    # Беларусь-3 Марк хочет видеть среди русских каналов, а не в познавательных
+    if s['cid'] in STAY_RUSSIAN: return 'Русские каналы'
     if s['cid'] in COGNITIVE or s['group'] == '📚 Познавательные': return '📚 Познавательные'
     g = s['group']
     if g == 'Израиль': return 'Израиль'
-    if g.startswith('На русском'): return 'На русском'
+    if g.startswith('На русском'): return 'Русские каналы'
     if g.startswith('🎬'): return '🎬 Кино'
     if g in ('🌿 Релакс и природа', '📷 Виды и путешествия'): return g
     return '🎵 Музыка'
 # Канал есть в нескольких папках (например, белорусская музыка — и «На русском», и «Музыка»):
 # оставляем одну, по старшинству: Израиль, Музыка, Кино, На русском, остальное
-rank = {'Израиль': 0, '📚 Познавательные': 0, '🎵 Музыка': 1, '🎬 Кино': 2, 'На русском': 3}
+rank = {'Израиль': 0, '📚 Познавательные': 0, '🎵 Музыка': 1, '🎬 Кино': 2, 'Русские каналы': 3}
 chosen = {}
 for s in everything:
     item = dict(s, group=big(s), pin=s['group'] == '⭐ Моя музыка')
     cur = chosen.get(s['url'])
+    if s['cid'] in STAY_RUSSIAN: item['group'] = 'Русские каналы'
     if cur is None or rank.get(item['group'], 9) < rank.get(cur['group'], 9) or (item['pin'] and not cur['pin']):
         chosen[s['url']] = item
 merged = list(chosen.values())
-write('all.m3u', merged, ['Израиль', 'На русском', '🎬 Кино', '🎵 Музыка', '📚 Познавательные', '🌿 Релакс и природа', '📷 Виды и путешествия'])
+write('all.m3u', merged, ['Израиль', 'Русские каналы', '🎬 Кино', '🎵 Музыка', '📚 Познавательные', '🌿 Релакс и природа', '📷 Виды и путешествия'])
 
 # Каталог для страницы выбора каналов: все проверенные каналы с папкой, логотипом и «работает ли сейчас»
 import json
