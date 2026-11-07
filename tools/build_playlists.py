@@ -3,7 +3,7 @@
 Запускается каждый день на GitHub (.github/workflows/playlists.yml).
 Каналы, которые сейчас не отвечают или отвечают дольше 5 секунд, в плейлист не попадают.
 """
-import csv, glob, re, sys, collections, time, urllib.request, concurrent.futures as cf
+import csv, glob, re, sys, collections, time, urllib.request, urllib.parse, concurrent.futures as cf
 
 ST, DB = sys.argv[1], sys.argv[2]   # папки iptv/streams и database/data
 OUT = sys.argv[3] if len(sys.argv) > 3 else '.'
@@ -34,8 +34,20 @@ for f in sorted(glob.glob(f'{ST}/*.m3u')):
                 opts.append(lines[j]); j += 1
             url = lines[j].strip() if j < len(lines) else ''
             m = re.search(r'tvg-id="([^"]*)"', l); tid = m.group(1) if m else ''
+            # Особые настройки (#EXTVLCOPT) пишем в адрес после «|» — плеер Lupo понимает их с версии 2.12
+            hdr = {}
+            for o in opts:
+                kv = o.split(':', 1)[1] if ':' in o else ''
+                k, _, v = kv.partition('=')
+                k = k.strip().lower(); v = v.strip()
+                if v and k == 'http-user-agent': hdr['User-Agent'] = v
+                elif v and k in ('http-referrer', 'http-referer'): hdr['Referer'] = v
+                elif v and k == 'http-origin': hdr['Origin'] = v
+            bad = any(o.split(':', 1)[0].upper() not in ('#EXTVLCOPT',) for o in opts)
+            if hdr:
+                url = url + '|' + '&'.join(k + '=' + urllib.parse.quote(v, safe='') for k, v in hdr.items())
             streams.append(dict(tid=tid, cid=tid.split('@')[0], feed=tid.split('@')[1] if '@' in tid else '',
-                                name=l.rsplit(',', 1)[1].strip(), url=url, opts=opts, file=f))
+                                name=l.rsplit(',', 1)[1].strip(), url=url, opts=opts if bad else [], file=f))
             i = j + 1
         else:
             i += 1
@@ -52,6 +64,8 @@ def usable(s, c):
     # Особые настройки (плеер их не понимает), запрет для других стран, пересылки платных каналов, 18+
     if s['opts'] or '[Geo-blocked]' in s['name'] or not s['url'].startswith('http'): return False
     if re.search(r'//(89\.33\.29\.115|stream\.mcquack\.net)', s['url']): return False
+    # Адрес — голый IP-номер сервера: обычно это чужая пересылка платного канала, не берём
+    if re.match(r'https?://\d+\.\d+\.\d+\.\d+[:/]', s['url']): return False
     if c.get('is_nsfw') == 'TRUE' or c.get('closed') or s['cid'] in blocked: return False
     return True
 
@@ -104,10 +118,15 @@ tv, music, mine, kino = best(tv), best(music), best(mine), best(kino)
 
 # Проверка: канал отвечает за 5 секунд и отдаёт поток (а не ошибку или страницу)
 UA = 'VLC/3.0.20 LibVLC/3.0.20'
-def alive(url):
+def alive(full):
     try:
         t = time.time()
-        req = urllib.request.Request(url, headers={'User-Agent': UA})
+        url, _, extra = full.partition('|')
+        h = {'User-Agent': UA}
+        for part in extra.split('&') if extra else []:
+            k, _, v = part.partition('=')
+            if v: h[k] = urllib.parse.unquote(v)
+        req = urllib.request.Request(url, headers=h)
         with urllib.request.urlopen(req, timeout=5) as r:
             head = r.read(2048)
             if r.status >= 400: return False
