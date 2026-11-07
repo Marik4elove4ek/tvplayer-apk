@@ -96,6 +96,8 @@ def best(pairs):
     return list(out.values())
 
 tv, music, mine, kino, views = [], [], [], [], []
+# В базе отмечены как русскоязычные, а на деле идут не на русском (Марк проверил) — в «На русском» не берём
+NOT_RUSSIAN = {'TraceSportStars.fr'}
 for s in streams:
     c = ch.get(s['cid'], {})
     if not usable(s, c): continue
@@ -121,7 +123,7 @@ for s in streams:
         tv.append(('Музыка · ' + ('Россия' if country == 'RU' else 'Украина'), s)); continue
     if s['cid'] == 'CityTV.bg':
         tv.append(('Музыка · Болгария', s)); continue
-    if 'rus' in L and country and country != 'RU' and country not in ASIA_FAR:
+    if 'rus' in L and country and country != 'RU' and country not in ASIA_FAR and s['cid'] not in NOT_RUSSIAN:
         tv.append(('На русском · ' + COUNTRY_RU.get(country, cname.get(country, country)), s))
 
 tv, music, mine, kino, views = best(tv), best(music), best(mine), best(kino), best(views)
