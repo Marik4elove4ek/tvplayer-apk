@@ -161,7 +161,7 @@ if os.path.exists(f'{OUT}/picks.json'):
         def cid_of(s):
             return s['tid'] or re.sub(r'\s*\[(Not 24/7)\]', '', re.sub(r'\s*\(\d+p\)', '', s['name'])).strip()
         everything = [s for s in everything if s['group'] == '⭐ Моя музыка' or cid_of(s) in picked]
-write('all.m3u', everything, ['⭐ Моя музыка', 'Израиль', '🎬 Россия', '🎬 Украина'] +
+write('all.m3u', everything, ['Израиль', '⭐ Моя музыка', '🎬 Россия', '🎬 Украина'] +
       sorted({s['group'] for s in tv if s['group'].startswith('На русском')}) +
       ['🎵 ' + x for x in ['Россия', 'Украина', 'Беларусь', 'Израиль', 'Болгария', 'Греция', 'Турция']])
 
