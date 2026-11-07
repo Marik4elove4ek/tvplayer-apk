@@ -95,7 +95,7 @@ def best(pairs):
         out[key] = dict(s, group=g)
     return list(out.values())
 
-tv, music, mine, kino, views = [], [], [], [], []
+tv, music, mine, kino, views, edu = [], [], [], [], [], []
 # В базе отмечены как русскоязычные, а на деле идут не на русском (Марк проверил) — в «На русском» не берём
 NOT_RUSSIAN = {'TraceSportStars.fr'}
 for s in streams:
@@ -108,6 +108,10 @@ for s in streams:
     # Кино и сериалы на русском (переведённые фильмы) — по стране канала
     if ('movies' in cats or 'series' in cats) and 'rus' in L and country not in ASIA_FAR:
         kino.append(('🎬 ' + ('Россия' if country == 'RU' else COUNTRY_RU.get(country, cname.get(country, country or 'Разное'))), s))
+    # Познавательные на русском: документальные, наука, история, природа, путешествия, кухня, здоровье, авто
+    EDU = {'documentary', 'education', 'science', 'culture', 'lifestyle', 'cooking', 'travel', 'outdoor', 'auto'}
+    if 'rus' in L and set(cats) & EDU and country not in ASIA_FAR and s['cid'] not in NOT_RUSSIAN:
+        edu.append(('📚 Познавательные', s))
     # Релакс (камины, аквариумы, природа, космос) и виды/путешествия (веб-камеры, города, пляжи)
     if 'relax' in cats and country not in ASIA_FAR:
         views.append(('🌿 Релакс и природа', s))
@@ -126,7 +130,7 @@ for s in streams:
     if 'rus' in L and country and country != 'RU' and country not in ASIA_FAR and s['cid'] not in NOT_RUSSIAN:
         tv.append(('На русском · ' + COUNTRY_RU.get(country, cname.get(country, country)), s))
 
-tv, music, mine, kino, views = best(tv), best(music), best(mine), best(kino), best(views)
+tv, music, mine, kino, views, edu = best(tv), best(music), best(mine), best(kino), best(views), best(edu)
 
 # Проверка: канал отвечает за 5 секунд и отдаёт поток (а не ошибку или страницу)
 UA = 'VLC/3.0.20 LibVLC/3.0.20'
@@ -149,7 +153,7 @@ def alive(full):
     except Exception:
         return False
 
-urls = {s['url'] for s in tv + music + mine + kino + views}
+urls = {s['url'] for s in tv + music + mine + kino + views + edu}
 with cf.ThreadPoolExecutor(64) as ex:
     ok = dict(zip(urls, ex.map(alive, urls)))
 # Израильские каналы часто закрыты для зрителей не из Израиля, а проверка идёт с серверов в США:
@@ -187,7 +191,7 @@ write('kino.m3u', kino, ['🎬 Россия', '🎬 Украина', '🎬 Бе�
 # Всё в одном файле (all.m3u): моя музыка, Израиль, кино, каналы на русском, вся музыка.
 # Музыкальные папки из tv.m3u не повторяем — эти каналы уже есть в «🎵 …»
 everything = [dict(s, group='⭐ Моя музыка') for s in mine] + \
-    [s for s in tv if not s['group'].startswith('Музыка · ')] + kino + music + views
+    [s for s in tv if not s['group'].startswith('Музыка · ')] + kino + music + views + edu
 # Марк отметил каналы на странице выбора (picks.json) — в общем файле только они (и «Моя музыка»)
 import json, os
 if os.path.exists(f'{OUT}/picks.json'):
@@ -202,7 +206,7 @@ if os.path.exists(f'{OUT}/picks.json'):
 COGNITIVE = {'FunBoxUHD.nl', 'GlazamiTurista.ru', 'RTGint.ru', 'RTGTV.ru', 'Vkus.ru', 'NashaTema.ru'}
 
 def big(s):
-    if s['cid'] in COGNITIVE: return '📚 Познавательные'
+    if s['cid'] in COGNITIVE or s['group'] == '📚 Познавательные': return '📚 Познавательные'
     g = s['group']
     if g == 'Израиль': return 'Израиль'
     if g.startswith('На русском'): return 'На русском'
@@ -225,7 +229,7 @@ write('all.m3u', merged, ['Израиль', 'На русском', '🎬 Кин�
 import json
 cat = []
 seen = set()
-for s in mine + tv + kino + music + views:
+for s in mine + edu + tv + kino + music + views:
     key = (s['cid'] or s['name'], s['url'])
     if key in seen: continue
     seen.add(key)
