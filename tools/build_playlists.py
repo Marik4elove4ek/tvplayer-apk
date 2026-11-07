@@ -152,6 +152,10 @@ def alive(full):
 urls = {s['url'] for s in tv + music + mine + kino + views}
 with cf.ThreadPoolExecutor(64) as ex:
     ok = dict(zip(urls, ex.map(alive, urls)))
+# Израильские каналы часто закрыты для зрителей не из Израиля, а проверка идёт с серверов в США:
+# там они «молчат», хотя у Марка работают. Поэтому их считаем рабочими всегда
+for x in tv:
+    if x['group'] == 'Израиль': ok[x['url']] = True
 print('проверено', len(urls), 'работают', sum(ok.values()))
 # Сеть у сервера сборки сбоила (работает меньше пятой части) — старые плейлисты не трогаем
 if sum(ok.values()) < len(urls) // 5:
