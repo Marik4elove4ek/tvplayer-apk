@@ -155,7 +155,7 @@ def write(name, items, order, keep_always=False):
     for g in order + sorted(k for k in groups if k not in order):
         for s in sorted(groups.get(g, []), key=lambda x: x['name'].lower()):
             # Каналы, которые попросил сам Марк, остаются, даже если сейчас молчат (City TV не круглосуточный)
-            if not ok.get(s['url']) and not keep_always: continue
+            if not ok.get(s['url']) and not keep_always and s['group'] != '⭐ Моя музыка': continue
             nm = re.sub(r'\s*\[(Not 24/7)\]', '', re.sub(r'\s*\(\d+p\)', '', s['name'])).strip()
             if s['cid'] == 'CityTV.bg': nm = 'City TV (Болгария)'
             logo = logos.get(s['cid'])
