@@ -21,6 +21,8 @@ cname = {r['code']: r['name'] for r in csv.DictReader(open(f'{DB}/countries.csv'
 regions = {r['code']: set(r['countries'].split(';')) for r in csv.DictReader(open(f'{DB}/regions.csv', encoding='utf-8'))}
 # Азия, которая нам не нужна: Дальний Восток, Юго-Восточная и Южная Азия, Океания
 ASIA_FAR = regions.get('EAS', set()) | regions.get('SEA', set()) | regions.get('SAS', set()) | regions.get('APAC', set())
+# Марк попросил убрать: Казахстан, Узбекистан и другие страны Средней Азии, Азербайджан, Турцию
+ASIA_FAR |= regions.get('CAS', set()) | {'KZ', 'UZ', 'KG', 'TJ', 'TM', 'AZ', 'TR'}
 
 streams = []
 for f in sorted(glob.glob(f'{ST}/*.m3u')):
@@ -97,7 +99,7 @@ for s in streams:
     if s['cid'] in ('VIVARussia.ru', 'CityTV.bg'):
         mine.append(('Музыка', s))
     # Кино и сериалы на русском (переведённые фильмы) — по стране канала
-    if ('movies' in cats or 'series' in cats) and 'rus' in L:
+    if ('movies' in cats or 'series' in cats) and 'rus' in L and country not in ASIA_FAR:
         kino.append(('🎬 ' + ('Россия' if country == 'RU' else COUNTRY_RU.get(country, cname.get(country, country or 'Разное'))), s))
     if 'music' in cats and country not in ASIA_FAR:
         g = RU.get(country) or ('Латинская Америка' if country in LAT else 'Арабские' if country in ARAB else 'Другие страны')
