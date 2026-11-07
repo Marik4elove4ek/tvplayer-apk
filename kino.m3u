@@ -1,4 +1,6 @@
 #EXTM3U
+#EXTINF:-1 tvg-id="5minuttishiny.ru@SD" tvg-logo="https://cdn2-static.ntv.ru/home/promo/24740/5minut_live.jpg" group-title="🎬 Россия",5 minut tishiny
+https://cdn-dvr.ntv.ru/5_minut_tishiny/index.m3u8
 #EXTINF:-1 tvg-id="Bollywood.ru@HD" tvg-logo="https://i.imgur.com/YLQRnXt.png" group-title="🎬 Россия",Bollywood HD
 http://176.118.197.101/Bollywood_HD/index.m3u8
 #EXTINF:-1 tvg-id="Cinema.ru@SD" tvg-logo="https://i.imgur.com/b5e9qUA.png" group-title="🎬 Россия",Cinema
@@ -33,12 +35,10 @@ https://fonbet.mediacdn.ru/live/muzhskoi/playlist.m3u8
 http://46.53.200.153:7777/play/SRT_Nash_kinopokaz/index.m3u8
 #EXTINF:-1 tvg-id="NasheNovoeKino.ru@SD" tvg-logo="https://i.imgur.com/IOxIsPj.png" group-title="🎬 Россия",Nashe Novoe Kino
 https://stream8.cinerama.uz/1051/tracks-v1a1/mono.m3u8
+#EXTINF:-1 tvg-id="Nevskiy.ru@SD" tvg-logo="https://cdn2-static.ntv.ru/home/promo/24740/nevski_llive.jpg" group-title="🎬 Россия",Nevskiy
+https://cdn-dvr.ntv.ru/Nevskiy/index.m3u8
 #EXTINF:-1 tvg-id="NTVHit.ru@SD" tvg-logo="https://i.imgur.com/FfKBvz5.png" group-title="🎬 Россия",NTV-Hit
 http://178.134.1.158:8081/ntvhit/index.m3u8
-#EXTINF:-1 tvg-id="Perviyotdel.ru@SD" tvg-logo="https://cdn2-static.ntv.ru/home/promo/24740/perv_otdel_llive.jpg" group-title="🎬 Россия",Perviy otdel
-https://cdn-dvr.ntv.ru/Perviy_otdel/index.m3u8
-#EXTINF:-1 tvg-id="Pes.ru@SD" tvg-logo="https://cdn2-static.ntv.ru/home/promo/24740/pes_llive.jpg" group-title="🎬 Россия",Pes
-https://cdn-dvr.ntv.ru/Pes/index.m3u8
 #EXTINF:-1 tvg-id="Saphire.ru@SD" tvg-logo="https://i.imgur.com/NMOBvle.png" group-title="🎬 Россия",Saphire
 http://46.53.200.153:7777/play/Sapfir_HD/index.m3u8
 #EXTINF:-1 tvg-id="Shef.ru@SD" tvg-logo="https://cdn2-static.ntv.ru/home/promo/24740/shef_llive.jpg" group-title="🎬 Россия",Shef
@@ -81,6 +81,8 @@ http://46.53.200.153:7777/play/Viju_Premiere/index.m3u8
 http://46.53.200.153:7777/play/Viju_Serial_HD/index.m3u8
 #EXTINF:-1 tvg-id="Kino1.ru@International" tvg-logo="https://i.imgur.com/zsCPLs4.png" group-title="🎬 Россия",Кино 1 International
 http://kino-1.catcast.tv/content/38617/index.m3u8
+#EXTINF:-1 tvg-id="NTVSeries.ru@SD" tvg-logo="https://i.imgur.com/QdVa8tl.png" group-title="🎬 Россия",НТВ Сериал
+https://cdn.ntv.ru/th_serial/playlist.m3u8
 #EXTINF:-1 tvg-id="CityEdenKinoAsia.ru@HD" tvg-logo="https://i.imgur.com/gaket4B.png" group-title="🎬 Россия",Сити Эдем КиноАзия
 https://cityeden.catcast.tv/content/34393/index.m3u8
 #EXTINF:-1 tvg-id="CityEdenKinoDetektiv.ru@HD" tvg-logo="https://i.imgur.com/9rKHwBV.png" group-title="🎬 Россия",Сити Эдем КиноДетектив

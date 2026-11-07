@@ -51,8 +51,6 @@ https://s7.iptv-24.net/1439/playlist.m3u8
 https://s7.iptv-24.net/1452/playlist.m3u8
 #EXTINF:-1 tvg-id="FREEDOM.ua@SD" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/thumb/f/f2/FreeDOMUAlogo.svg/960px-FreeDOMUAlogo.svg.png" group-title="Русские каналы",FREEDOM
 https://dash4.antik.sk/live/test_uatv/playlist.m3u8
-#EXTINF:-1 tvg-id="ManaTserkovOnlayn.pt@SD" tvg-logo="https://i.imgur.com/PruXLqS.png" group-title="Русские каналы",Maná Tserkov' Onlayn
-https://w2.manasat.com/tserkov-online/smil:tserkov-online.smil/playlist.m3u8
 #EXTINF:-1 tvg-id="OTV.ee@SD" tvg-logo="https://web02.antik.sk/assets/img/channels/5c4e6aadc3255df82fedf3221570cdb5.svg" group-title="Русские каналы",OTV
 http://88.212.7.14/live/otv/playlist.m3u8
 #EXTINF:-1 tvg-id="PerviyInformationniy.by@HD" tvg-logo="https://i.imgur.com/eIiXRAI.png" group-title="Русские каналы",Perviy Informationniy HD
@@ -257,8 +255,6 @@ http://31.148.5.241/kanal_14/index.m3u8
 https://stream8.cinerama.uz/1421/tracks-v1a1/mono.m3u8
 #EXTINF:-1 tvg-id="FunBoxUHD.nl@SD" tvg-logo="https://i.imgur.com/9FJct9o.png" group-title="📚 Познавательные",FunBox UHD
 https://webtvstream.bhtelecom.ba/funbox.m3u8|User-Agent=Mozilla%2F5.0%20%28Windows%20NT%2010.0%3B%20Win64%3B%20x64%29%20AppleWebKit%2F537.36%20%28KHTML%2C%20like%20Gecko%29%20Chrome%2F149.0.0.0%20Safari%2F537.3
-#EXTINF:-1 tvg-id="GlazamiTurista.ru@SD" tvg-logo="https://i.imgur.com/GXJKWdy.png" group-title="📚 Познавательные",Glazami Turista (576i)
-https://stream8.cinerama.uz/1423/tracks-v1a1/mono.m3u8
 #EXTINF:-1 tvg-id="Kuhnya.ru@SD" tvg-logo="https://cdn2.red-media.ru/wp-content/uploads/2016/08/Kuhnya-mediakit.png" group-title="📚 Познавательные",Kuhnya
 https://stream8.cinerama.uz/1236/tracks-v1a1/mono.m3u8
 #EXTINF:-1 tvg-id="KulinarTV.ru@SD" tvg-logo="https://smotret.tv/images/kulinar-tv.webp" group-title="📚 Познавательные",Kulinar TV
@@ -267,6 +263,8 @@ https://api.alpaca.t62a.com/hls/9110/stream0.m3u8
 https://mumbai-edge.smartplaytv.in/LoveNature/index.m3u8
 #EXTINF:-1 tvg-id="Nano.ru@HD" tvg-logo="https://i.imgur.com/dYj3XDa.png" group-title="📚 Познавательные",Nano HD
 http://185.23.80.23:8080/NANO_HD/index.m3u8
+#EXTINF:-1 tvg-id="NashaTema.ru@SD" tvg-logo="https://i.imgur.com/67ZVDKW.png" group-title="📚 Познавательные",Nasha Tema
+https://fonbet.mediacdn.ru/live/nashatema/playlist.m3u8
 #EXTINF:-1 tvg-id="NTVMir.ru@SD" tvg-logo="https://i.imgur.com/pUcV46F.png" group-title="📚 Познавательные",NTV Mir
 http://5.188.159.128:8070/ntvmir_TV/index.m3u8
 #EXTINF:-1 tvg-id="Okhotairybalka.ru@SD" tvg-logo="https://i.imgur.com/nZwBaeW.png" group-title="📚 Познавательные",Okhota i rybalka
