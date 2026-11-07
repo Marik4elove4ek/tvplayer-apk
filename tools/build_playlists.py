@@ -95,7 +95,7 @@ def best(pairs):
         out[key] = dict(s, group=g)
     return list(out.values())
 
-tv, music, mine, kino = [], [], [], []
+tv, music, mine, kino, views = [], [], [], [], []
 for s in streams:
     c = ch.get(s['cid'], {})
     if not usable(s, c): continue
@@ -106,6 +106,11 @@ for s in streams:
     # Кино и сериалы на русском (переведённые фильмы) — по стране канала
     if ('movies' in cats or 'series' in cats) and 'rus' in L and country not in ASIA_FAR:
         kino.append(('🎬 ' + ('Россия' if country == 'RU' else COUNTRY_RU.get(country, cname.get(country, country or 'Разное'))), s))
+    # Релакс (камины, аквариумы, природа, космос) и виды/путешествия (веб-камеры, города, пляжи)
+    if 'relax' in cats and country not in ASIA_FAR:
+        views.append(('🌿 Релакс и природа', s))
+    elif 'travel' in cats and country not in ASIA_FAR:
+        views.append(('📷 Виды и путешествия', s))
     if 'music' in cats and country not in ASIA_FAR:
         g = RU.get(country) or ('Латинская Америка' if country in LAT else None)
         if g: music.append(('🎵 ' + g, s))
@@ -119,7 +124,7 @@ for s in streams:
     if 'rus' in L and country and country != 'RU' and country not in ASIA_FAR:
         tv.append(('На русском · ' + COUNTRY_RU.get(country, cname.get(country, country)), s))
 
-tv, music, mine, kino = best(tv), best(music), best(mine), best(kino)
+tv, music, mine, kino, views = best(tv), best(music), best(mine), best(kino), best(views)
 
 # Проверка: канал отвечает за 5 секунд и отдаёт поток (а не ошибку или страницу)
 UA = 'VLC/3.0.20 LibVLC/3.0.20'
@@ -142,7 +147,7 @@ def alive(full):
     except Exception:
         return False
 
-urls = {s['url'] for s in tv + music + mine + kino}
+urls = {s['url'] for s in tv + music + mine + kino + views}
 with cf.ThreadPoolExecutor(64) as ex:
     ok = dict(zip(urls, ex.map(alive, urls)))
 print('проверено', len(urls), 'работают', sum(ok.values()))
@@ -176,7 +181,7 @@ write('kino.m3u', kino, ['🎬 Россия', '🎬 Украина', '🎬 Бе�
 # Всё в одном файле (all.m3u): моя музыка, Израиль, кино, каналы на русском, вся музыка.
 # Музыкальные папки из tv.m3u не повторяем — эти каналы уже есть в «🎵 …»
 everything = [dict(s, group='⭐ Моя музыка') for s in mine] + \
-    [s for s in tv if not s['group'].startswith('Музыка · ')] + kino + music
+    [s for s in tv if not s['group'].startswith('Музыка · ')] + kino + music + views
 # Марк отметил каналы на странице выбора (picks.json) — в общем файле только они (и «Моя музыка»)
 import json, os
 if os.path.exists(f'{OUT}/picks.json'):
@@ -192,6 +197,7 @@ def big(s):
     if g == 'Израиль': return 'Израиль'
     if g.startswith('На русском'): return 'На русском'
     if g.startswith('🎬'): return '🎬 Кино'
+    if g in ('🌿 Релакс и природа', '📷 Виды и путешествия'): return g
     return '🎵 Музыка'
 merged, seen = [], set()
 for s in everything:
@@ -199,13 +205,13 @@ for s in everything:
     if key in seen: continue
     seen.add(key)
     merged.append(dict(s, group=big(s), pin=s['group'] == '⭐ Моя музыка'))
-write('all.m3u', merged, ['Израиль', 'На русском', '🎬 Кино', '🎵 Музыка'])
+write('all.m3u', merged, ['Израиль', 'На русском', '🎬 Кино', '🎵 Музыка', '🌿 Релакс и природа', '📷 Виды и путешествия'])
 
 # Каталог для страницы выбора каналов: все проверенные каналы с папкой, логотипом и «работает ли сейчас»
 import json
 cat = []
 seen = set()
-for s in mine + tv + kino + music:
+for s in mine + tv + kino + music + views:
     key = (s['cid'] or s['name'], s['url'])
     if key in seen: continue
     seen.add(key)
