@@ -156,9 +156,9 @@ def write(name, items, order, keep_always=False):
     groups = collections.defaultdict(list)
     for s in items: groups[s['group']].append(s)
     for g in order + sorted(k for k in groups if k not in order):
-        for s in sorted(groups.get(g, []), key=lambda x: x['name'].lower()):
+        for s in sorted(groups.get(g, []), key=lambda x: (not x.get('pin'), x['name'].lower())):
             # Каналы, которые попросил сам Марк, остаются, даже если сейчас молчат (City TV не круглосуточный)
-            if not ok.get(s['url']) and not keep_always and s['group'] != '⭐ Моя музыка': continue
+            if not ok.get(s['url']) and not keep_always and s['group'] != '⭐ Моя музыка' and not s.get('pin'): continue
             nm = re.sub(r'\s*\[(Not 24/7)\]', '', re.sub(r'\s*\(\d+p\)', '', s['name'])).strip()
             if s['cid'] == 'CityTV.bg': nm = 'City TV (Болгария)'
             logo = logos.get(s['cid'])
@@ -185,9 +185,21 @@ if os.path.exists(f'{OUT}/picks.json'):
         def cid_of(s):
             return s['tid'] or re.sub(r'\s*\[(Not 24/7)\]', '', re.sub(r'\s*\(\d+p\)', '', s['name'])).strip()
         everything = [s for s in everything if s['group'] == '⭐ Моя музыка' or cid_of(s) in picked]
-write('all.m3u', everything, ['Израиль', '⭐ Моя музыка', '🎬 Россия', '🎬 Украина'] +
-      sorted({s['group'] for s in tv if s['group'].startswith('На русском')}) +
-      ['🎵 ' + x for x in ['Россия', 'Украина', 'Беларусь', 'Израиль', 'Болгария', 'Греция', 'Турция']])
+# Папки в общем файле — крупные: Израиль, На русском, Кино, Музыка (Марк попросил собрать всё вместе).
+# «Моя музыка» (VIVA Russia, City TV) — первой в папке «Музыка»
+def big(s):
+    g = s['group']
+    if g == 'Израиль': return 'Израиль'
+    if g.startswith('На русском'): return 'На русском'
+    if g.startswith('🎬'): return '🎬 Кино'
+    return '🎵 Музыка'
+merged, seen = [], set()
+for s in everything:
+    key = s['url']
+    if key in seen: continue
+    seen.add(key)
+    merged.append(dict(s, group=big(s), pin=s['group'] == '⭐ Моя музыка'))
+write('all.m3u', merged, ['Израиль', 'На русском', '🎬 Кино', '🎵 Музыка'])
 
 # Каталог для страницы выбора каналов: все проверенные каналы с папкой, логотипом и «работает ли сейчас»
 import json
