@@ -64,8 +64,6 @@ def usable(s, c):
     # Особые настройки (плеер их не понимает), запрет для других стран, пересылки платных каналов, 18+
     if s['opts'] or '[Geo-blocked]' in s['name'] or not s['url'].startswith('http'): return False
     if re.search(r'//(89\.33\.29\.115|stream\.mcquack\.net)', s['url']): return False
-    # Адрес — голый IP-номер сервера: обычно это чужая пересылка платного канала, не берём
-    if re.match(r'https?://\d+\.\d+\.\d+\.\d+[:/]', s['url']): return False
     if c.get('is_nsfw') == 'TRUE' or c.get('closed') or s['cid'] in blocked: return False
     return True
 
