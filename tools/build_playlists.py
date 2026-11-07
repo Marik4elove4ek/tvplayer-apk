@@ -79,6 +79,9 @@ LAT = regions.get('AMER', set()) - {'US', 'CA'}
 ARAB = {'SA', 'LB', 'AE', 'EG', 'IQ', 'JO', 'KW', 'QA', 'MA', 'DZ', 'TN', 'SY', 'OM', 'BH', 'YE', 'LY', 'PS', 'SD'}
 # Марк попросил убрать: Сербию, Словению, Македонию и арабские страны
 ASIA_FAR |= ARAB | {'RS', 'SI', 'MK'}
+# «Другие страны» (Африка, Иран и прочие) Марку не нужны — в плейлистах только страны, у которых есть своя папка
+ASIA_FAR |= regions.get('AFR', set()) | {'IR'}
+RU['LU'] = 'Люксембург'
 COUNTRY_RU = {'AZ': 'Азербайджан', 'BY': 'Беларусь', 'CA': 'Канада', 'CN': 'Китай', 'CZ': 'Чехия', 'EE': 'Эстония', 'FR': 'Франция',
               'GE': 'Грузия', 'DE': 'Германия', 'IN': 'Индия', 'KZ': 'Казахстан', 'KG': 'Кыргызстан', 'LU': 'Люксембург', 'MD': 'Молдова',
               'NL': 'Нидерланды', 'PL': 'Польша', 'PT': 'Португалия', 'RO': 'Румыния', 'TM': 'Туркменистан', 'UA': 'Украина',
@@ -104,8 +107,8 @@ for s in streams:
     if ('movies' in cats or 'series' in cats) and 'rus' in L and country not in ASIA_FAR:
         kino.append(('🎬 ' + ('Россия' if country == 'RU' else COUNTRY_RU.get(country, cname.get(country, country or 'Разное'))), s))
     if 'music' in cats and country not in ASIA_FAR:
-        g = RU.get(country) or ('Латинская Америка' if country in LAT else 'Арабские' if country in ARAB else 'Другие страны')
-        music.append(('🎵 ' + g, s))
+        g = RU.get(country) or ('Латинская Америка' if country in LAT else None)
+        if g: music.append(('🎵 ' + g, s))
     if country == 'IL' or s['file'].endswith('/il.m3u'):
         if 'ara' in L or re.search(r'arab|makan|hala', s['name'], re.I): continue
         tv.append(('Израиль', s)); continue
