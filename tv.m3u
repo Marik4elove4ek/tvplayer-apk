@@ -159,6 +159,8 @@ http://777905.live.tvstitch.com/playlist.m3u8?master=249&source=aHR0cDovLzE3Ni4x
 http://777905.live.tvstitch.com/playlist.m3u8?master=102&source=aHR0cDovLzE3Ni4xMjIuMTAzLjI0MTo3MDAwL2NoNDgvdHJhY2tzLXYxYTEvbW9uby5tM3U4P2xpdmU9MSZpcD0xNzguMTM2LjQyLjIyMCZpZD05NDg4NjUmc2VjcmV0PW4xdTd1aTA2JnNzbD0xJjIxeW89MCZlPTE3OTA1OTk5NDcmc3Q9N3ROblpCZy02WTBka1RuekRIZjU0QQ==|Referer=http%3A%2F%2Flive.tvstitch.com%2F&User-Agent=Mozilla%2F5.0%20%28Windows%20NT%2010.0%3B%20Win64%3B%20x64%29%20AppleWebKit%2F537.36%20%28KHTML%2C%20like%20Gecko%29%20Chrome%2F152.0.0.0%20Safari%2F537.36
 #EXTINF:-1 tvg-id="ViasatSerial.ua@HD" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/7/7d/Viasat_Serial.svg" group-title="На русском · Украина",Viasat Serial
 http://777905.live.tvstitch.com/playlist.m3u8?master=599&source=aHR0cDovLzE3Ni4xMjIuMTAzLjI0MTo3MDAwL2NoNDUvdHJhY2tzLXYyYTEvbW9uby5tM3U4P2xpdmU9MSZpcD0xNzguMTM2LjQyLjIyMCZpZD05NDg4NjUmc2VjcmV0PW4xdTd1aTA2JnNzbD0xJjIxeW89MCZlPTE3OTA2MDExNzAmc3Q9VS12czVHQmhOdF9WQXJ4bHVYVzR2dw==|Referer=http%3A%2F%2Flive.tvstitch.com%2F&User-Agent=Mozilla%2F5.0%20%28Windows%20NT%2010.0%3B%20Win64%3B%20x64%29%20AppleWebKit%2F537.36%20%28KHTML%2C%20like%20Gecko%29%20Chrome%2F152.0.0.0%20Safari%2F537.36
+#EXTINF:-1 tvg-id="Lugansk24.ua@SD" tvg-logo="https://i.imgur.com/AihoVc0.png" group-title="На русском · Украина",Луганск 24
+https://streaming.televizor-24-tochka.ru/live/29.m3u8
 #EXTINF:-1 tvg-id="PervyygorodskoyOdessa.ua@SD" tvg-logo="https://i.imgur.com/8qdc6aO.png" group-title="На русском · Украина",Первый городской (Одесса)
 http://91.194.79.46:8081/stream1/channel1/playlist.m3u8
 #EXTINF:-1 tvg-id="EuronewsRussian.fr@SD" tvg-logo="https://i.imgur.com/8t9mdg9.png" group-title="На русском · Франция",Euronews Russian
