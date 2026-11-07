@@ -205,7 +205,7 @@ if os.path.exists(f'{OUT}/picks.json'):
 # Папки в общем файле — крупные: Израиль, На русском, Кино, Музыка (Марк попросил собрать всё вместе).
 # «Моя музыка» (VIVA Russia, City TV) — первой в папке «Музыка»
 # Марк собрал отдельную папку «Познавательные»
-STAY_RUSSIAN = {'Belarus3.by'}
+STAY_RUSSIAN = {'Belarus3.by', 'Domashniy.ru'}
 COGNITIVE = {'FunBoxUHD.nl', 'GlazamiTurista.ru', 'RTGint.ru', 'RTGTV.ru', 'Vkus.ru', 'NashaTema.ru'}
 
 def big(s):
