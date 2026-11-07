@@ -199,12 +199,16 @@ def big(s):
     if g.startswith('🎬'): return '🎬 Кино'
     if g in ('🌿 Релакс и природа', '📷 Виды и путешествия'): return g
     return '🎵 Музыка'
-merged, seen = [], set()
+# Канал есть в нескольких папках (например, белорусская музыка — и «На русском», и «Музыка»):
+# оставляем одну, по старшинству: Израиль, Музыка, Кино, На русском, остальное
+rank = {'Израиль': 0, '🎵 Музыка': 1, '🎬 Кино': 2, 'На русском': 3}
+chosen = {}
 for s in everything:
-    key = s['url']
-    if key in seen: continue
-    seen.add(key)
-    merged.append(dict(s, group=big(s), pin=s['group'] == '⭐ Моя музыка'))
+    item = dict(s, group=big(s), pin=s['group'] == '⭐ Моя музыка')
+    cur = chosen.get(s['url'])
+    if cur is None or rank.get(item['group'], 9) < rank.get(cur['group'], 9) or (item['pin'] and not cur['pin']):
+        chosen[s['url']] = item
+merged = list(chosen.values())
 write('all.m3u', merged, ['Израиль', 'На русском', '🎬 Кино', '🎵 Музыка', '🌿 Релакс и природа', '📷 Виды и путешествия'])
 
 # Каталог для страницы выбора каналов: все проверенные каналы с папкой, логотипом и «работает ли сейчас»
