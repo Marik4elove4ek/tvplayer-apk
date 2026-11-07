@@ -148,3 +148,33 @@ write('music.m3u', music, ['🎵 ' + x for x in ['Россия', 'Украина
       'Армения', 'Грузия', 'Азербайджан', 'Великобритания', 'США', 'Канада', 'Германия', 'Франция', 'Италия', 'Испания']])
 write('muzyka.m3u', mine, ['Музыка'], keep_always=True)
 write('kino.m3u', kino, ['🎬 Россия', '🎬 Украина', '🎬 Беларусь', '🎬 Казахстан'])
+
+# Всё в одном файле (all.m3u): моя музыка, Израиль, кино, каналы на русском, вся музыка.
+# Музыкальные папки из tv.m3u не повторяем — эти каналы уже есть в «🎵 …»
+everything = [dict(s, group='⭐ Моя музыка') for s in mine] + \
+    [s for s in tv if not s['group'].startswith('Музыка · ')] + kino + music
+# Марк отметил каналы на странице выбора (picks.json) — в общем файле только они (и «Моя музыка»)
+import json, os
+if os.path.exists(f'{OUT}/picks.json'):
+    picked = set(json.load(open(f'{OUT}/picks.json', encoding='utf-8')).get('ids', []))
+    if picked:
+        def cid_of(s):
+            return s['tid'] or re.sub(r'\s*\[(Not 24/7)\]', '', re.sub(r'\s*\(\d+p\)', '', s['name'])).strip()
+        everything = [s for s in everything if s['group'] == '⭐ Моя музыка' or cid_of(s) in picked]
+write('all.m3u', everything, ['⭐ Моя музыка', 'Израиль', '🎬 Россия', '🎬 Украина'] +
+      sorted({s['group'] for s in tv if s['group'].startswith('На русском')}) +
+      ['🎵 ' + x for x in ['Россия', 'Украина', 'Беларусь', 'Израиль', 'Болгария', 'Греция', 'Турция']])
+
+# Каталог для страницы выбора каналов: все проверенные каналы с папкой, логотипом и «работает ли сейчас»
+import json
+cat = []
+seen = set()
+for s in mine + tv + kino + music:
+    key = (s['cid'] or s['name'], s['url'])
+    if key in seen: continue
+    seen.add(key)
+    nm = re.sub(r'\s*\[(Not 24/7)\]', '', re.sub(r'\s*\(\d+p\)', '', s['name'])).strip()
+    cat.append({'id': s['tid'] or nm, 'n': nm, 'g': s['group'], 'l': logos.get(s['cid'], ''), 'u': s['url'], 'ok': bool(ok.get(s['url']))})
+json.dump(cat, open(f'{OUT}/catalog.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
+print('catalog.json', len(cat))
+
