@@ -27,6 +27,8 @@ static const int VIDEO_DECODER_ERROR_READ_FRAME = -3;
 // Слабые устройства (телефон/планшет без аппаратного 4K): кадры выше этой высоты сразу уменьшаем
 // (0 — не уменьшать). Так 4K 10 бит идёт программно: перевод цвета и вывод на экран — уже в Full HD
 static volatile int g_maxOutHeight = 0;
+// Плавный режим: устройство не успевает — пропускаем «необязательные» кадры (видео ровнее, но реже)
+static volatile int g_skipNonRef = 0;
 
 static void logError(const char *where, int err) {
     char buf[256];
@@ -97,6 +99,11 @@ Java_com_iptv_player_ffvideo_FfVideoLibrary_ffmpegGetVersion(JNIEnv *env, jclass
 extern "C" JNIEXPORT void JNICALL
 Java_com_iptv_player_ffvideo_FfVideoLibrary_ffmpegSetMaxOutputHeight(JNIEnv *, jclass, jint height) {
     g_maxOutHeight = height;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_iptv_player_ffvideo_FfVideoLibrary_ffmpegSetSkipNonRef(JNIEnv *, jclass, jboolean skip) {
+    g_skipNonRef = skip ? 1 : 0;
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
@@ -170,6 +177,10 @@ Java_com_iptv_player_ffvideo_FfVideoDecoder_ffmpegSendPacket(JNIEnv *env, jobjec
     packet->data = (uint8_t *) env->GetDirectBufferAddress(encodedData);
     packet->size = length;
     packet->pts = inputTime;
+    {
+        AVDiscard want = g_skipNonRef ? AVDISCARD_NONREF : AVDISCARD_DEFAULT;
+        if (jni->codecContext->skip_frame != want) jni->codecContext->skip_frame = want;
+    }
     int result = avcodec_send_packet(jni->codecContext, packet);
     packet->data = nullptr;
     packet->size = 0;
