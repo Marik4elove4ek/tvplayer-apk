@@ -1,6 +1,8 @@
 #EXTM3U
 #EXTINF:-1 tvg-id="5minuttishiny.ru@SD" tvg-logo="https://cdn2-static.ntv.ru/home/promo/24740/5minut_live.jpg" group-title="🎬 Россия",5 minut tishiny
 https://cdn-dvr.ntv.ru/5_minut_tishiny/index.m3u8
+#EXTINF:-1 tvg-id="Balabol.ru@SD" tvg-logo="https://cdn2-static.ntv.ru/home/promo/24740/balabol_vse.jpg" group-title="🎬 Россия",Balabol
+https://cdn-dvr.ntv.ru/Balabol/index.m3u8
 #EXTINF:-1 tvg-id="Bollywood.ru@HD" tvg-logo="https://i.imgur.com/YLQRnXt.png" group-title="🎬 Россия",Bollywood HD
 http://176.118.197.101/Bollywood_HD/index.m3u8
 #EXTINF:-1 tvg-id="Cinema.ru@SD" tvg-logo="https://i.imgur.com/b5e9qUA.png" group-title="🎬 Россия",Cinema
@@ -25,6 +27,8 @@ http://93.170.254.17/Kinomiks/index.m3u8
 https://fs.uplink.kz/kinoseria/mono.m3u8?token=onlinetv
 #EXTINF:-1 tvg-id="MirSeriala.ru@SD" tvg-logo="https://i.imgur.com/uzj7wVp.png" group-title="🎬 Россия",Mir Seriala
 http://176.118.197.101/MirSeriala/index.m3u8
+#EXTINF:-1 tvg-id="Muzhskoy.ru@HD" tvg-logo="https://i.imgur.com/xyztpBf.png" group-title="🎬 Россия",Muzhskoy HD
+https://fonbet.mediacdn.ru/live/muzhskoi/playlist.m3u8
 #EXTINF:-1 tvg-id="NashKinopokaz.ru@HD" tvg-logo="https://i.imgur.com/iwTMl8O.png" group-title="🎬 Россия",Nash Kinopokaz HD
 http://46.53.200.153:7777/play/SRT_Nash_kinopokaz/index.m3u8
 #EXTINF:-1 tvg-id="NasheNovoeKino.ru@SD" tvg-logo="https://i.imgur.com/IOxIsPj.png" group-title="🎬 Россия",Nashe Novoe Kino
@@ -35,14 +39,10 @@ https://cdn-dvr.ntv.ru/Nevskiy/index.m3u8
 http://178.134.1.158:8081/ntvhit/index.m3u8
 #EXTINF:-1 tvg-id="Perviyotdel.ru@SD" tvg-logo="https://cdn2-static.ntv.ru/home/promo/24740/perv_otdel_llive.jpg" group-title="🎬 Россия",Perviy otdel
 https://cdn-dvr.ntv.ru/Perviy_otdel/index.m3u8
-#EXTINF:-1 tvg-id="Pes.ru@SD" tvg-logo="https://cdn2-static.ntv.ru/home/promo/24740/pes_llive.jpg" group-title="🎬 Россия",Pes
-https://cdn-dvr.ntv.ru/Pes/index.m3u8
 #EXTINF:-1 tvg-id="Saphire.ru@SD" tvg-logo="https://i.imgur.com/NMOBvle.png" group-title="🎬 Россия",Saphire
 http://46.53.200.153:7777/play/Sapfir_HD/index.m3u8
 #EXTINF:-1 tvg-id="Shef.ru@SD" tvg-logo="https://cdn2-static.ntv.ru/home/promo/24740/shef_llive.jpg" group-title="🎬 Россия",Shef
 https://cdn-dvr.ntv.ru/Shef/index.m3u8
-#EXTINF:-1 tvg-id="Skorayapomoshch.ru@SD" tvg-logo="https://cdn2-static.ntv.ru/home/promo/24740/skoraya_pom_llive.jpg" group-title="🎬 Россия",Skoraya pomoshch
-https://cdn-dvr.ntv.ru/Skoraja_pomosh/index.m3u8
 #EXTINF:-1 tvg-id="Smotrim100Klassika.ru@SD" tvg-logo="https://i.imgur.com/aASNpKq.png" group-title="🎬 Россия",Smotrim 100% Klassika
 https://stream.smotrim.ru/hls/fasttv03/playlist_3.m3u8
 #EXTINF:-1 tvg-id="Smotrim100Lyubov.ru@SD" tvg-logo="https://i.imgur.com/4EFh0nu.png" group-title="🎬 Россия",Smotrim 100% Lyubov
@@ -103,8 +103,6 @@ https://cityeden.catcast.tv/content/45268/index.m3u8
 https://cityeden.catcast.tv/content/41333/index.m3u8
 #EXTINF:-1 tvg-id="CityEdenTeleNovella.ru@HD" tvg-logo="https://i.imgur.com/mT5liTh.png" group-title="🎬 Россия",Сити Эдем ТелеНовелла
 https://cityeden.catcast.tv/content/46209/index.m3u8
-#EXTINF:-1 tvg-id="SmotrimChestnyyDetektiv.ru@SD" tvg-logo="https://cdn-st3.smotrim.ru/vh/pictures/svg/444/241/8.svg" group-title="🎬 Россия",Смотрим Честный Детектив
-https://live-vgtrksmotrim.cdnvideo.ru/vgtrksmotrim/smotrim-live-01.smil/playlist.m3u8
 #EXTINF:-1 tvg-id="ViasatKinoComedy.ua@SD" tvg-logo="https://i.imgur.com/qVYt8kP.png" group-title="🎬 Украина",Viasat Kino Comedy
 http://777905.live.tvstitch.com/playlist.m3u8?master=249&source=aHR0cDovLzE3Ni4xMjIuMTAzLjI0MTo3MDAwL2NoNDQvdHJhY2tzLXYxYTEvbW9uby5tM3U4P2xpdmU9MSZpcD0xNzguMTM2LjQyLjIyMCZpZD05NDg4NjUmc2VjcmV0PW4xdTd1aTA2JnNzbD0xJjIxeW89MCZlPTE3OTA1OTk4Mzcmc3Q9UzRPS1VZemNocmREQWhnSTJkTDJ5QQ==|Referer=http%3A%2F%2Flive.tvstitch.com%2F&User-Agent=Mozilla%2F5.0%20%28Windows%20NT%2010.0%3B%20Win64%3B%20x64%29%20AppleWebKit%2F537.36%20%28KHTML%2C%20like%20Gecko%29%20Chrome%2F152.0.0.0%20Safari%2F537.36
 #EXTINF:-1 tvg-id="ViasatKinoWorld.ua@SD" tvg-logo="https://i.imgur.com/GPiE2Rb.png" group-title="🎬 Украина",Viasat Kino World

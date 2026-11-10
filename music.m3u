@@ -75,8 +75,6 @@ https://eco.streams.ovh:8081/barazatv/tracks-v1a1/mono.m3u8
 https://rtmp.streams.ovh:1936/barazarelax/barazazararelax/barazarelax/playlist.m3u8
 #EXTINF:-1 tvg-id="BarazaTVRelaxing.gr@SD" tvg-logo="https://i.imgur.com/TZ1unwF.png" group-title="🎵 Греция",Baraza TV Relaxing
 https://rtmp.streams.ovh:1936/barazarelax/barazarelax/playlist.m3u8
-#EXTINF:-1 tvg-id="EllinikosFM.gr@SD" tvg-logo="https://i.ibb.co/y0ydCNB/unnamed-4.png" group-title="🎵 Греция",Ellinikos FM
-https://rtmp.win:3603/live/ellinikosfmlive.m3u8
 #EXTINF:-1 tvg-id="MessatidaTV.gr@SD" tvg-logo="https://i.imgur.com/WEYrIrC.png" group-title="🎵 Греция",Messatida TV
 https://rtmp.streams.ovh:8081/mtv/index.m3u8
 #EXTINF:-1 tvg-id="NRG91.gr@SD" tvg-logo="https://i.imgur.com/1Zl1OJ5.png" group-title="🎵 Греция",NRG 91
@@ -115,6 +113,8 @@ https://cdn.global.elektamedia.com/live/c7eds/Totalmusic_Dance/SA_LIVE_hls_enc/m
 https://channels.trace.plus/Traceprod/UK_FAST_hd/index.m3u8
 #EXTINF:-1 tvg-id="30AMusic.us@SD" tvg-logo="https://i.imgur.com/gNWg9tl.png" group-title="🎵 США",30A Music
 https://30a-tv.com/music.m3u8
+#EXTINF:-1 tvg-id="3ABNPraiseHimMusicNetwork.us@SD" tvg-logo="https://i.imgur.com/iBcqT8L.png" group-title="🎵 США",3ABN Praise Him Music Network
+https://3abn.bozztv.com/3abn1/PraiseHim/smil:PraiseHim.smil/playlist.m3u8
 #EXTINF:-1 tvg-id="ACECountryRadio.us@KPVMLD" tvg-logo="https://i.imgur.com/iPtuku6.png" group-title="🎵 США",ACE Country Radio KPVM-LD
 https://2-fss-1.streamhoster.com/pl_122/206858-4412960-1/playlist.m3u8
 #EXTINF:-1 tvg-id="AvangTV.us@SD" tvg-logo="https://i.imgur.com/3I1n7fO.png" group-title="🎵 США",Avang TV
@@ -135,8 +135,10 @@ https://hwlive.streamingmediahosting.com/14215-live/0_obd393sh/playlist.m3u8
 http://23.237.104.106:8080/USA_CMT/index.m3u8
 #EXTINF:-1 tvg-id="CMTEqualPlay.us@SD" tvg-logo="https://i.imgur.com/9ysjkkL.png" group-title="🎵 США",CMT Equal Play
 https://jmp2.uk/plu-5f68f53eb1e5800007390bf8.m3u8
-#EXTINF:-1 tvg-id="ConcertChannel.us@SD" tvg-logo="https://i.imgur.com/u2irADf.png" group-title="🎵 США",Concert Channel
-https://jmp2.uk/plu-6868152657543d1f8be4ece3.m3u8
+#EXTINF:-1 tvg-id="EBSMusika.us@SD" tvg-logo="https://i.imgur.com/lSpplhD.png" group-title="🎵 США",EBS Musika
+https://rpn.bozztv.com/ebstv/ebsmusika/index.m3u8
+#EXTINF:-1 tvg-id="HarmonyGospelMusicTV.us@SD" tvg-logo="https://i.imgur.com/iDiGBE3.png" group-title="🎵 США",Harmony Gospel Music TV
+https://tgn.bozztv.com/watc57/watc57-harmony/watc57-harmony/index.m3u8
 #EXTINF:-1 tvg-id="HighVisionTV.us@SD" tvg-logo="https://i.imgur.com/zhCgoru.png" group-title="🎵 США",High Vision
 https://streamer1.connectto.com/HIGHVISION_WEB_1205/index.m3u8
 #EXTINF:-1 tvg-id="HMIPROMZNEWS.us@SD" tvg-logo="https://i.imgur.com/gwPaw3v.png" group-title="🎵 США",HMI PROMZ NEWS
@@ -183,6 +185,8 @@ https://d39g1vxj2ef6in.cloudfront.net/v1/manifest/3fec3e5cac39a52b2132f9c66c83da
 https://fffffff110156200.tvustream.com:8298/ryfy.m3u8
 #EXTINF:-1 tvg-id="TheCountryNetwork.us@SD" tvg-logo="https://upload.wikimedia.org/wikipedia/en/d/dd/The_Country_Network_Logo.png" group-title="🎵 США",The Country Network
 https://amg00600-amg00600c1-thecountrynetwork-us-5497.playouts.now.amagi.tv/playlist.m3u8
+#EXTINF:-1 tvg-id="TVSMusicNetwork.us@SD" group-title="🎵 США",TVS Music Network
+https://rpn.bozztv.com/gusa/gusa-tvsmusic/index.m3u8
 #EXTINF:-1 tvg-id="VevoHipHop.us@SD" tvg-logo="https://i.imgur.com/Lbc9cYw.png" group-title="🎵 США",Vevo Hip Hop
 https://d3vgs3ro3x6v8a.cloudfront.net/Vevo_Hip_Hop.m3u8
 #EXTINF:-1 tvg-id="VevoLatino.us@SD" tvg-logo="https://i.imgur.com/D7SwmuB.png" group-title="🎵 США",Vevo Latino
@@ -191,8 +195,12 @@ https://amg00056-amg00056c13-rakuten-es-3246.playouts.now.amagi.tv/playlist.m3u8
 https://d1hf773q57zx9s.cloudfront.net/Vevo_R_B.m3u8
 #EXTINF:-1 tvg-id="VevoTrueSchoolHipHop.us@SD" tvg-logo="https://i.imgur.com/owUXUih.png" group-title="🎵 США",Vevo True School Hip-Hop
 https://jmp2.uk/plu-61d4c2817a823d00070ba53e.m3u8
+#EXTINF:-1 tvg-id="VH1.us@East" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/thumb/9/94/VH1_logonew.svg/960px-VH1_logonew.svg.png" group-title="🎵 США",VH1
+http://23.237.104.106:8080/USA_VH1/index.m3u8
 #EXTINF:-1 tvg-id="VideoMixTV.us@SD" tvg-logo="https://i.imgur.com/nyLrIPP.png" group-title="🎵 США",Video Mix TV
 https://2-fss-2.streamhoster.com/pl_118/206436-3189488-1/playlist.m3u8
+#EXTINF:-1 tvg-id="WOXTV.us@SD" tvg-logo="https://image.roku.com/developer_channels/prod/7e6a7c4835ec344de629865f7a36feb4058001e7a3d9bc8dd0d1f3dc8e754cd7.png" group-title="🎵 США",WOX TV
+https://tuvideoonline.com.ar:3332/live/xlevelmedialive.m3u8
 #EXTINF:-1 tvg-id="WVCULP.us@SD" tvg-logo="https://upload.wikimedia.org/wikipedia/en/0/0f/WVCU-LP_2015.PNG" group-title="🎵 США",WVCU-LP Concord University Radio The Cure 97.7
 https://video1.getstreamhosting.com:1936/8152/8152/playlist.m3u8
 #EXTINF:-1 tvg-id="XITE90sThrowback.us@SD" tvg-logo="https://i.imgur.com/vwpOzuz.png" group-title="🎵 США",XITE 90's Throwback
@@ -411,12 +419,6 @@ https://dd782ed59e2a4e86aabf6fc508674b59.msvdn.net/live/S97044836/tbbP8T1ZRPBL/p
 https://streamtv.mediasector.es/hls/activatv/index.m3u8
 #EXTINF:-1 tvg-id="CadenaElite.es@SD" tvg-logo="https://i.imgur.com/3yeGDTP.png" group-title="🎵 Испания",Cadena Elite
 https://cloudvideo.servers10.com:8081/8004/index.m3u8
-#EXTINF:-1 tvg-id="LiraTV.es@SD" tvg-logo="https://i.imgur.com/hBswXYZ.png" group-title="🎵 Испания",LiraTV
-https://cloud2.streaminglivehd.com:1936/liratv/liratv/playlist.m3u8
-#EXTINF:-1 tvg-id="MusicTVGranada.es@SD" tvg-logo="https://i.ibb.co/Swd9NP7n/music-tv-granada.png" group-title="🎵 Испания",Music TV Granada
-https://cloudvideo.servers10.com:8081/8032/index.m3u8
-#EXTINF:-1 tvg-id="Onda15TV.es@SD" tvg-logo="https://i.imgur.com/mUrZz9O.png" group-title="🎵 Испания",Onda 15 TV
-https://cloudvideo.servers10.com:8081/8034/index.m3u8
 #EXTINF:-1 tvg-id="OndaValenciaTV.es@SD" tvg-logo="https://i.imgur.com/6HxLUQd.png" group-title="🎵 Испания",Onda Valencia
 https://cloudvideo.servers10.com:8081/8116/index.m3u8
 #EXTINF:-1 tvg-id="POPWorldTV.es@SD" tvg-logo="https://i.imgur.com/LQB6G3s.jpg" group-title="🎵 Испания",POP World TV
@@ -471,6 +473,8 @@ https://cloud.fastchannel.es/manifiest/hls/prog9/btatv.m3u8
 https://canal.mediaserver.com.co/live/buenisimatv.m3u8
 #EXTINF:-1 tvg-id="ChamameTV.ar@SD" tvg-logo="https://i.imgur.com/JigzJck.png" group-title="🎵 Латинская Америка",Chamame TV
 https://srv4.zcast.com.br/chamametv/chamametv/playlist.m3u8
+#EXTINF:-1 tvg-id="ChocolateFM.cl@SD" tvg-logo="https://cdn.m3u.cl/logo/382_ChocolateFM.png" group-title="🎵 Латинская Америка",Chocolate FM
+https://5eaccbab48461.streamlock.net:1936/8180/8180/playlist.m3u8
 #EXTINF:-1 tvg-id="ClaroMusicaTV.co@SD" tvg-logo="https://i.imgur.com/vrSFUwv.png" group-title="🎵 Латинская Америка",Claro Musica TV
 http://45.171.64.30:6060/play/a010
 #EXTINF:-1 tvg-id="ConectaTV.mx@SD" tvg-logo="https://i.imgur.com/qEk0QGa.png" group-title="🎵 Латинская Америка",Conecta TV
@@ -489,14 +493,14 @@ https://rds3.desdeparaguay.net/dismartv/dismartv/playlist.m3u8
 https://copacotf.desdeparaguay.net/e40tv/e40tv_py_alta/playlist.m3u8?admin=tvaccion|Referer=https%3A%2F%2Fwww.estacion40.com.py%2F
 #EXTINF:-1 tvg-id="ElSolNetworkTV.ec@SD" tvg-logo="https://i.imgur.com/TIH3zlP.png" group-title="🎵 Латинская Америка",El Sol Network TV
 https://tv.wracanal10.com:3025/live/elsoltvlive.m3u8
-#EXTINF:-1 tvg-id="FabulosaEstereo1005FM.pa@SD" tvg-logo="https://i.imgur.com/YFmzkOp.png" group-title="🎵 Латинская Америка",Fabulosa Estéreo 100.5 FM
-https://www.streaming507.net:19360/videofabulosa/videofabulosa.m3u8
 #EXTINF:-1 tvg-id="Fame95FM.jm@SD" tvg-logo="https://i.imgur.com/n3PUxes.png" group-title="🎵 Латинская Америка",Fame95 FM
 https://rjrfame-ioriver-cdn.encoders.immergo.tv/master.m3u8
 #EXTINF:-1 tvg-id="FarraPlay.py@SD" tvg-logo="https://i.imgur.com/bXWzstH.png" group-title="🎵 Латинская Америка",Farra Play
 http://159.203.148.226/live/farra.m3u8
 #EXTINF:-1 tvg-id="FiestaTV.co@SD" tvg-logo="https://i.imgur.com/42wImV2.png" group-title="🎵 Латинская Америка",Fiesta TV
 https://panelvideo1.intermediahost.co:3286/live/ruzfpkqklive.m3u8
+#EXTINF:-1 tvg-id="FMMundo.ec@SD" tvg-logo="https://i.imgur.com/1nNnYQO.png" group-title="🎵 Латинская Америка",FM Mundo
+https://video2.makrodigital.com/fmmundo/fmmundo/playlist.m3u8
 #EXTINF:-1 tvg-id="FMPlusTV.cl@SD" tvg-logo="https://i.imgur.com/1UokOyN.png" group-title="🎵 Латинская Америка",FM Plus TV
 https://v2.tustreaming.cl/fmplus/index.m3u8
 #EXTINF:-1 tvg-id="FuegoTV.do@SD" tvg-logo="https://i.imgur.com/T9vWjeB.png" group-title="🎵 Латинская Америка",Fuego TV
@@ -519,8 +523,6 @@ https://vdo2.pro-fhi.net:3769/stream/play.m3u8
 https://s2.tvdatta.com:3753/hybrid/play.m3u8
 #EXTINF:-1 tvg-id="IQChannel.cr@SD" tvg-logo="https://i.imgur.com/hwuaomt.png" group-title="🎵 Латинская Америка",IQ Channel
 https://rtmp.info/iqtv/envivo/playlist.m3u8
-#EXTINF:-1 tvg-id="KandelaTV.ve@SD" tvg-logo="https://i.imgur.com/cCFxyIp.jpg" group-title="🎵 Латинская Америка",KandelaTV
-https://streamtv.intervenhosting.net:3718/live/kandelamedioslive.m3u8
 #EXTINF:-1 tvg-id="Karibena.pe@SD" tvg-logo="https://i.imgur.com/cgHjg1e.png" group-title="🎵 Латинская Америка",Karibena
 http://187.102.210.46/KARIBENA/index.m3u8
 #EXTINF:-1 tvg-id="La100.ar@SD" tvg-logo="https://cloudfront-us-east-1.images.arcpublishing.com/radiomitre/CZJMM4BJVRFANO4VGMMYWSTEVE.png" group-title="🎵 Латинская Америка",La 100
@@ -557,12 +559,20 @@ https://movil.ejeserver.com/live/mas23tv.m3u8
 https://hdbox.chunklistv.com/live?stream=megabox
 #EXTINF:-1 tvg-id="MetropoliMediosTV.ec@SD" tvg-logo="https://i.imgur.com/yID5T2S.jpg" group-title="🎵 Латинская Америка",Metropoli Medios TV
 https://eu1.servers10.com:8081/8214/index.m3u8
+#EXTINF:-1 tvg-id="MielTV.pe@SD" tvg-logo="https://i.imgur.com/dPSFrCs.png" group-title="🎵 Латинская Америка",Miel TV
+https://live-evg5.tv360.bitel.com.pe/bitel/mieltvSRT/playlist.m3u8
 #EXTINF:-1 tvg-id="Millenium109FM.pe@SD" tvg-logo="https://i.imgur.com/sfNL6Bv.png" group-title="🎵 Латинская Америка",Millenium 109 FM
 https://videoserver.tmcreativos.com:19360/nqvnhujhrx/nqvnhujhrx.m3u8
 #EXTINF:-1 tvg-id="MusicTop.ar@SD" tvg-logo="https://cdn.mitvstatic.com/channels/ar_musictop_m.png" group-title="🎵 Латинская Америка",MusicTop
 http://190.128.214.97:64333/play/a06o/index.m3u8
 #EXTINF:-1 tvg-id="MasFM.ar@SD" tvg-logo="https://i.imgur.com/TJ4gWQM.png" group-title="🎵 Латинская Америка",Más FM 95.9
 https://vivo.solumedia.com:19360/masfm/masfm.m3u8
+#EXTINF:-1 tvg-id="NandePortetepeTV.py@SD" tvg-logo="https://i.imgur.com/3taT6JK.jpeg" group-title="🎵 Латинская Америка",Nande Portetepe TV
+https://video.hostingcaaguazu.com:19360/nandeportetepe/nandeportetepe.m3u8
+#EXTINF:-1 tvg-id="NextHD.py@SD" tvg-logo="https://i.imgur.com/c2rF3SS.png" group-title="🎵 Латинская Америка",Next HD
+https://live.enhdtv.com:19360/nexthd/nexthd.m3u8
+#EXTINF:-1 tvg-id="NuevaVidaFM.pr@SD" tvg-logo="https://i.ibb.co/3mbZWyN/nav-Bar-title-Image-iphone6plus.png" group-title="🎵 Латинская Америка",Nueva Vida TV
+https://stream.nuevavidafm.net:3937/live/nuevavidalive.m3u8
 #EXTINF:-1 tvg-id="ParrandaVallenata.co@SD" tvg-logo="https://i.imgur.com/BzBX7Qx.jpeg" group-title="🎵 Латинская Америка",Parranda Vallenata
 https://backupmaxmedia.hvmultiplay.com/hls/stream3/parrandavallenata.m3u8
 #EXTINF:-1 tvg-id="PatagoniaRadioTV.cl@SD" tvg-logo="https://i.imgur.com/oFuWBZO.png" group-title="🎵 Латинская Америка",Patagonia Radio TV
@@ -573,8 +583,6 @@ https://redirector.rudo.video/hls-video/ey6283je82983je9823je8jowowiekldk9838274
 https://sistemastr.tropicalmoonmedia.com/live/7C452409423F57ADC960F6405635267F/7.m3u8
 #EXTINF:-1 tvg-id="Planet1009FM.pa@SD" tvg-logo="https://i.imgur.com/8ZIBs8l.png" group-title="🎵 Латинская Америка",Planet 100.9 FM
 https://streamlov.alsolnet.com/planet1009fm/live/playlist.m3u8
-#EXTINF:-1 tvg-id="Power1017FM.aw@SD" tvg-logo="https://i.imgur.com/bkQrXjB.png" group-title="🎵 Латинская Америка",Power 101.7 FM
-https://vcp11.myplaytv.com/powerfm/powerfm/playlist.m3u8
 #EXTINF:-1 tvg-id="QuieroMusicaenmiIdioma.ar@SD" tvg-logo="https://i.imgur.com/RO9Dz3X.png" group-title="🎵 Латинская Америка",Quiero Musica en mi Idioma
 http://158.172.155.130:8000/play/a00a/index.m3u8
 #EXTINF:-1 tvg-id="RadioBonita1067.ec@SD" tvg-logo="https://i.imgur.com/IvZtqyz.png" group-title="🎵 Латинская Америка",Radio Bonita 106.7
@@ -607,6 +615,8 @@ https://live.ondadigitaltv.com/RADIOODTV/index.m3u8
 https://unlimited2-cl-isp.dps.live/pudahueltv/pudahueltv.smil/playlist.m3u8
 #EXTINF:-1 tvg-id="RadioRealpolitik.ar@SD" tvg-logo="https://i.imgur.com/L9KCdTX.png" group-title="🎵 Латинская Америка",Radio Realpolitik
 https://vivo.solumedia.com:19360/realpolitik/realpolitik.m3u8
+#EXTINF:-1 tvg-id="RadioRumbaTV.pe@SD" tvg-logo="https://i.imgur.com/BYcxI03.png" group-title="🎵 Латинская Америка",Radio Rumba TV
+https://live-evg7.tv360.bitel.com.pe/bitel/rumba/playlist.m3u8
 #EXTINF:-1 tvg-id="RadioSanCristobal887FM.py@SD" tvg-logo="https://i.imgur.com/zaJhBdj.png" group-title="🎵 Латинская Америка",Radio San Cristobal 88.7 FM
 https://video.wilohosting.com:19360/sancristobalfm/sancristobalfm.m3u8
 #EXTINF:-1 tvg-id="RadioSuyaiTV.cl@HD" tvg-logo="https://stream-tools.zenomedia.com/content/stations/883465cc-a2ee-418a-972d-2c937707687d/image/?keep=w&lu=1775615385000&resize=350x350" group-title="🎵 Латинская Америка",Radio Suyai TV
@@ -623,8 +633,6 @@ http://181.78.12.119:16123/play/ch15/index.m3u8
 https://vdochile.com:3864/stream/play.m3u8
 #EXTINF:-1 tvg-id="Reyali.co@SD" tvg-logo="https://i.imgur.com/YmFjnsF.png" group-title="🎵 Латинская Америка",Reyali
 https://eu1.servers10.com:8081/8090/index.m3u8
-#EXTINF:-1 tvg-id="RHTGuadeloupe.gp@SD" tvg-logo="https://i.imgur.com/hQ0Q6nE.png" group-title="🎵 Латинская Америка",RHT Guadeloupe
-https://edge12.vedge.infomaniak.com/livecast/ik:livehautetension/manifest.m3u8
 #EXTINF:-1 tvg-id="RitoqueTV.cl@SD" tvg-logo="https://i.imgur.com/nTVJcFA.png" group-title="🎵 Латинская Америка",Ritoque TV
 https://streaming.purum.cl/ritoquetv/index.m3u8
 #EXTINF:-1 tvg-id="RockPop.ar@SD" tvg-logo="https://fmrockandpop.com/images/ryp/R&P_Logo_web_207x112px.png" group-title="🎵 Латинская Америка",Rock & Pop
@@ -671,8 +679,6 @@ http://hls.tmacaraibes.com/live/index.m3u8
 http://38.87.224.20:2220/play/a02b/index.m3u8
 #EXTINF:-1 tvg-id="TopicalMoonRD.do@HD" tvg-logo="https://www.vivalivetv.com/public/files/shows/0/1/3900-294x165-FFFFFF.jpg" group-title="🎵 Латинская Америка",Topical Moon RD
 https://sistemastr.tropicalmoonmedia.com/live/56BE17DB16EB76C9F2DDB8346F4DFA4E/30.m3u8
-#EXTINF:-1 tvg-id="TropiQ997FM.pa@SD" tvg-logo="https://i.imgur.com/5rPdHhb.png" group-title="🎵 Латинская Америка",Tropi Q 99.7 FM
-https://www.streaming507.net:19360/videotropiq/videotropiq.m3u8
 #EXTINF:-1 tvg-id="TropicalMoonUrbanTV.pa@SD" tvg-logo="https://i.imgur.com/WcM7BP5.png" group-title="🎵 Латинская Америка",Tropical Moon Urban TV
 https://sistemastr.tropicalmoonmedia.com/live/D8E123ACA054EF85B153C354A481A406/4.m3u8
 #EXTINF:-1 tvg-id="Tropicalia939FM.py@SD" tvg-logo="https://i.imgur.com/oMML5Ue.png" group-title="🎵 Латинская Америка",Tropicalia 93.9 FM
@@ -705,12 +711,12 @@ https://cloudvideo.servers10.com:8081/8016/index.m3u8
 http://45.163.139.42:8000/play/a03d/index.m3u8
 #EXTINF:-1 tvg-id="VoiceOverRadioTV.cr@SD" tvg-logo="https://i.imgur.com/HzGs1Eh.png" group-title="🎵 Латинская Америка",VoiceOver Radio TV
 https://cloudvideo.servers10.com:8081/8198/index.m3u8
+#EXTINF:-1 tvg-id="VosyTV.ec@SD" tvg-logo="https://i.imgur.com/294FDCB.png" group-title="🎵 Латинская Америка",Vos y TV
+https://cloud37.ecuatel.com/vostv/live/manifest.m3u8
 #EXTINF:-1 tvg-id="WavezFM.aw@SD" tvg-logo="https://i.imgur.com/uyROZSS.png" group-title="🎵 Латинская Америка",Wavez FM
 https://media.streambrothers.com:1936/uszqnhpjpa/uszqnhpjpa/playlist.m3u8
 #EXTINF:-1 tvg-id="X1027FM.aw@SD" tvg-logo="https://i.imgur.com/28b810Y.png" group-title="🎵 Латинская Америка",X 102.7 FM
 https://live2.tensila.com/onair-v-1.xfm1027/hls/master.m3u8
-#EXTINF:-1 tvg-id="XLevelMedia.ar@SD" tvg-logo="https://i.imgur.com/BGwQdQW.jpeg" group-title="🎵 Латинская Америка",X Level Media
-https://tuvideoonline.com.ar:3332/live/xlevelmedialive.m3u8
 #EXTINF:-1 tvg-id="2TV.lt@SD" tvg-logo="https://i.imgur.com/sZUIhGc.png" group-title="🎵 Литва",2TV
 https://lnk5511.bstrm.net/live/687e3ff1679c8d4d68fab6c5/hd/manifest.mpd
 #EXTINF:-1 tvg-id="LRTKlasika.lt@SD" tvg-logo="https://i.imgur.com/Fa8Vhu0.png" group-title="🎵 Литва",LRT Klasika
@@ -719,6 +725,8 @@ https://stream-live.lrt.lt/klasika/master.m3u8
 https://stream-live.lrt.lt/opus/master.m3u8
 #EXTINF:-1 tvg-id="M1.lt@SD" tvg-logo="https://i.ibb.co/gb4NmNHT/M1-2025.png" group-title="🎵 Литва",M-1
 https://m-1.data.lt/m-1/smil:m-1.smil/playlist.m3u8
+#EXTINF:-1 tvg-id="PowerHitRadio.lt@SD" tvg-logo="https://i.imgur.com/GOlQbfC.png" group-title="🎵 Литва",Power Hit Radio
+https://cdnlb.tvplayhome.lt/live/eds/PWR_LTU_Live/GO3_LIVE_HLS/PWR_LTU_Live.m3u8
 #EXTINF:-1 tvg-id="RTLGold.lu@SD" tvg-logo="https://i.imgur.com/LzHQoUv.png" group-title="🎵 Люксембург",RTL Gold
 https://stream.rtl.lu/data/live/tele/rtlgold/playlist.m3u8
 #EXTINF:-1 tvg-id="TodayRadio.lu@SD" tvg-logo="https://i.imgur.com/O1c6wpt.png" group-title="🎵 Люксембург",RTL Today Radio
@@ -795,6 +803,8 @@ https://hls01ns.antenaplay.ro/hls/emi-tv-sd/index.m3u8
 https://live.tvimpact.ro:8088/hevc/index.m3u8|Referer=https%3A%2F%2Ftvimpact.ro%2F
 #EXTINF:-1 tvg-id="ImpactTV2.ro@HD" tvg-logo="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRwL2-8r1l1NDdmA6jkZYvHxPFrsIA7a8m-XdSpwC6Z&s=10" group-title="🎵 Румыния",Impact TV 2
 https://online.tvimpact.live/hls/impact_tv2.m3u8
+#EXTINF:-1 tvg-id="ImpactTVDance.ro@SD" tvg-logo="https://i.imgur.com/G5mNdpE.png" group-title="🎵 Румыния",Impact TV Dance
+https://online.tvimpact.live/hls/dancetv.m3u8
 #EXTINF:-1 tvg-id="ImpactTVManele.ro@SD" tvg-logo="https://i.imgur.com/4JdnUAd.png" group-title="🎵 Румыния",Impact TV Manele
 https://online.tvimpact.live/hls/impact_tv.m3u8
 #EXTINF:-1 tvg-id="KissTV.ro@SD" tvg-logo="https://i.imgur.com/NKfVymH.png" group-title="🎵 Румыния",Kiss TV

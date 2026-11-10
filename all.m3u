@@ -157,6 +157,8 @@ https://hitfm.nfthost.net/hls/hitfm/live_all/playlist.m3u8
 https://studiocam-oe3.mdn.ors.at/orf/studiocam_oe3/q6a/manifest.mpd
 #EXTINF:-1 tvg-id="ImpactTV2.ro@HD" tvg-logo="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRwL2-8r1l1NDdmA6jkZYvHxPFrsIA7a8m-XdSpwC6Z&s=10" group-title="🎵 Музыка",Impact TV 2
 https://online.tvimpact.live/hls/impact_tv2.m3u8
+#EXTINF:-1 tvg-id="ImpactTVDance.ro@SD" tvg-logo="https://i.imgur.com/G5mNdpE.png" group-title="🎵 Музыка",Impact TV Dance
+https://online.tvimpact.live/hls/dancetv.m3u8
 #EXTINF:-1 tvg-id="KissTV.ro@SD" tvg-logo="https://i.imgur.com/NKfVymH.png" group-title="🎵 Музыка",Kiss TV
 https://tv.broadcasting.ro/kisstv/a629c031-2170-4ee9-a36d-87a891aa3131.m3u8
 #EXTINF:-1 tvg-id="Kronehit.at@SD" tvg-logo="https://i.imgur.com/dQJQv1X.png" group-title="🎵 Музыка",Kronehit
@@ -293,6 +295,8 @@ https://stream8.cinerama.uz/1428/tracks-v1a1/mono.m3u8
 https://v4.proofix.ru/0mir/index.m3u8
 #EXTINF:-1 tvg-id="Telecafe.ru@SD" tvg-logo="https://i.imgur.com/1H3h1HL.png" group-title="📚 Познавательные",Телекафе
 https://cdn4.skygo.mn/live/disk1/Telecafe/HLSv3-FTA/Telecafe.m3u8|User-Agent=Mozilla%2F5.0%20%28Windows%20NT%2010.0%3B%20Win64%3B%20x64%29%20AppleWebKit%2F537.36%20%28KHTML%2C%20like%20Gecko%29%20Chrome%2F144.0.0.0%20Safari%2F537.36
+#EXTINF:-1 tvg-id="BetterLifeNatureChannel.us@SD" tvg-logo="https://i.imgur.com/D8Vuw6I.png" group-title="🌿 Релакс и природа",Better Life Nature Channel
+https://tgn.bozztv.com/betterlife/betternature/betternature/index.m3u8
 #EXTINF:-1 tvg-id="DroneTV.us@SD" tvg-logo="https://i.ibb.co/S71C9RJC/dronetv.webp" group-title="🌿 Релакс и природа",DroneTV
 https://airvuz-dronetv-1-us.ohlscdn.wurl.tv/playlist.m3u8
 #EXTINF:-1 tvg-id="Home4K.ru@SD" tvg-logo="https://i.imgur.com/3UXk7JR.png" group-title="🌿 Релакс и природа",Home 4K
@@ -319,3 +323,5 @@ https://a-cdn.klowdtv.com/live2/mydestinationtv_720p/playlist.m3u8
 http://media4.tripsmarter.com:1935/LiveTV/NOTVHD/playlist.m3u8
 #EXTINF:-1 tvg-id="PalmBeachesTV.us@SD" tvg-logo="https://i.imgur.com/kBol4Pf.png" group-title="📷 Виды и путешествия",Palm Beaches TV
 https://live.feed.thepalmbeaches.tv/index.m3u8
+#EXTINF:-1 tvg-id="TVSTravelNetwork.us@SD" tvg-logo="https://i.imgur.com/vSFf5Ce.png" group-title="📷 Виды и путешествия",TVS Travel Network
+https://rpn.bozztv.com/gusa/gusa-tvstravel/index.m3u8
