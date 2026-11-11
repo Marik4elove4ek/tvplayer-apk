@@ -1,5 +1,5 @@
 # Lupo Player
 
-Последняя версия: 2.36
+Последняя версия: 2.37
 
-Скачать: [Lupo-Player-2.36.apk](https://github.com/Marik4elove4ek/tvplayer-apk/raw/main/Lupo-Player-2.36.apk)
+Скачать: [Lupo-Player-2.37.apk](https://github.com/Marik4elove4ek/tvplayer-apk/raw/main/Lupo-Player-2.37.apk)
