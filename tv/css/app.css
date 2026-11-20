@@ -389,3 +389,6 @@ html.av-on .screen:not(#scr-player) { background: var(--bg) !important; }
 @keyframes rainbow { from { background-position: 0 0; } to { background-position: 300% 0; } }
 #pick-title, .sched-title { white-space: pre-line; }
 .doc-btns { justify-content: flex-end; margin-top: 18px; }
+/* Дерево папок: плейлисты (открыть/свернуть) и их папки с отступом */
+.grp.pl-head { color: var(--accent); font-weight: 700; }
+.grp.sub { padding-left: 44px !important; }

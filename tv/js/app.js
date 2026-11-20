@@ -246,7 +246,7 @@
   // ---------- Настройки: порядок как в Android (от главного к редкому) ----------
   const LANGS = [['en', 'English'], ['ru', 'Русский'], ['he', 'עברית'], ['fr', 'Français'], ['ar', 'العربية'],
     ['it', 'Italiano'], ['ja', '日本語'], ['ko', '한국어'], ['zh', '中文']];
-  const VERSION = '0.22';
+  const VERSION = '0.23';
   // Если телевизор даёт странице не 1920 точек в ширину, вся страница уменьшается под экран — ничего не обрезается
   (function fitScreen() {
     const k = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
@@ -857,36 +857,63 @@
   }
 
   // ---------- Слева: папки и плейлисты; ещё левее — меню ----------
-  function openDrawer() {
-    const box = $('dr-groups');
+  // Дерево папок, как в Android: сверху общее избранное, дальше плейлисты по порядку. Открыт один плейлист
+  // (▾) — под ним его «Избранное», «Все каналы» и папки; остальные свёрнуты (▸). OK на плейлисте — открыть/свернуть.
+  // onPick(p, g) — выбрана папка g плейлиста p; isOn(pid, g) — эта папка сейчас выбрана
+  function groupTree(box, expanded, onToggle, onPick, isOn) {
     box.innerHTML = '';
-    const head = txt => { const h = document.createElement('div'); h.className = 'dr-head'; h.textContent = txt; box.appendChild(h); };
-    const item = (label, on, act, g, pid) => {
+    const item = (label, cls, on, act, g, pid) => {
       const el = document.createElement('div');
-      el.className = 'grp focusable' + (on ? ' on' : '');
+      el.className = 'grp focusable' + (cls ? ' ' + cls : '') + (on ? ' on' : '');
       el.tabIndex = 0;
       el.textContent = label;
       el.onclick = act;
       el._g = g; el._pid = pid;
       box.appendChild(el);
+      return el;
     };
-    // В самом верху — общее избранное всех плейлистов; дальше плейлисты по порядку, у каждого свои папки
-    // (своё «Избранное», «Все каналы», папки)
-    item('★ ' + t('group_fav').replace(/^★\s*/, '') + ' · ' + t('all_playlists'), group === GFAV, () => { group = GFAV; setShown(inGroup(GFAV)); gi = Math.max(0, cur); closeDrawer(); renderGuide(); });
+    item('★ ' + t('group_fav').replace(/^★\s*/, '') + ' · ' + t('all_playlists'), '', isOn(null, GFAV), () => onPick(null, GFAV), GFAV, null);
     Store.playlists().filter(p => !p.off).forEach(p => {
-      head(p.name);
+      const open = p.id === expanded;
+      item((open ? '▾  ' : '▸  ') + '📺 ' + p.name, 'pl-head', false, () => onToggle(open ? null : p.id, p.id));
+      if (!open) return;
       const mine = pl && p.id === pl.id;
-      const list = mine ? channels : ((Store.channels(p.id) || {}).channels || []);
+      const list = noAdult(mine ? channels : ((Store.channels(p.id) || {}).channels || []));
       const gs = [];
-      noAdult(list).forEach(c => { if (!gs.includes(c.group)) gs.push(c.group); });
-      [FAV, ALL, ...gs.filter(g => list.some(c => c.group === g) && (!Store.parental() || !isAdultName(g)))].forEach(g => item(groupName(g, p.id), mine && g === group, () => openLockedGroup(g, p.id, () => {
-        closeDrawer();
-        if (mine) { group = g; setShown(inGroup(g)); gi = Math.max(0, cur); renderGuide(); return; }
-        Player.stop(); cur = -1; playingCh = null;
-        Store.saveLast({ pl: p.id, group: g, name: '' });
-        openGuide(p);
-      }, () => { Nav.setScope($('drawer'), drawerBack, drawerKeys); openDrawer(); }), g, p.id));
+      list.forEach(c => { if (!gs.includes(c.group)) gs.push(c.group); });
+      [FAV, ALL, ...gs.filter(g => !Store.parental() || !isAdultName(g))].forEach(g =>
+        item(groupName(g, p.id), 'sub', isOn(p.id, g), () => onPick(p, g), g, p.id));
     });
+  }
+  // Папка другого плейлиста: переходим на этот плейлист и его папку
+  function openOtherPlaylist(p, g) {
+    Player.stop(); cur = -1; playingCh = null;
+    Store.saveLast({ pl: p.id, group: g, name: '' });
+    openGuide(p);
+  }
+  let drExpanded = null;
+  function renderDrGroups(focusPid) {
+    const box = $('dr-groups');
+    groupTree(box, drExpanded, (id, pid) => { drExpanded = id; renderDrGroups(pid); },
+      (p, g) => {
+        if (!p) { group = GFAV; setShown(inGroup(GFAV)); gi = Math.max(0, cur); closeDrawer(); renderGuide(); return; }
+        openLockedGroup(g, p.id, () => {
+          closeDrawer();
+          if (pl && p.id === pl.id) { group = g; setShown(inGroup(g)); gi = Math.max(0, cur); renderGuide(); return; }
+          openOtherPlaylist(p, g);
+        }, () => { Nav.setScope($('drawer'), drawerBack, drawerKeys); openDrawer(); });
+      },
+      (pid, g) => (pid === null ? group === GFAV : pl && pid === pl.id && g === group));
+    if (focusPid !== undefined) {
+      const heads = [...box.querySelectorAll('.pl-head')];
+      const idx = Store.playlists().filter(p => !p.off).findIndex(p => p.id === focusPid);
+      if (heads[idx]) Nav.focus(heads[idx]);
+    }
+  }
+  function openDrawer() {
+    const box = $('dr-groups');
+    drExpanded = pl ? pl.id : null;
+    renderDrGroups();
     const menu = $('dr-menu');
     menu.innerHTML = '';
     // Меню как в Android: Поиск, Фильмы, Сериалы, Обновить, Тест скорости, Настройки («Мои плейлисты» — в Настройках)
@@ -1931,19 +1958,28 @@
     $('sd-time').textContent = p ? hm(p.s) + '–' + hm(p.e) : '';
     $('sd-text').textContent = p ? (p.d || t('info_no_desc')) : '';
   }
-  function openSideGroups() {
+  let sideExpanded = null;
+  function openSideGroups(focusPid) {
     const box = $('side-groups');
-    box.innerHTML = '';
-    groupsOf(channels).forEach(g => {
-      const el = document.createElement('div');
-      el.className = 'grp focusable' + (g === sideGroup ? ' on' : '');
-      el.tabIndex = 0;
-      el.textContent = groupName(g);
-      el.onclick = () => openLockedGroup(g, null, () => { sideScope(); sideGroup = g; hideSideGroups(); renderSide(false); }, () => { sideScope(); openSideGroups(); });
-      box.appendChild(el);
-    });
+    if (focusPid === undefined) sideExpanded = pl ? pl.id : null;
+    groupTree(box, sideExpanded, (id, pid) => { sideExpanded = id; openSideGroups(pid); },
+      (p, g) => {
+        if (!p) { sideScope(); sideGroup = GFAV; hideSideGroups(); renderSide(false); return; }
+        openLockedGroup(g, p.id, () => {
+          sideScope();
+          if (pl && p.id === pl.id) { sideGroup = g; hideSideGroups(); renderSide(false); return; }
+          closeSide();
+          openOtherPlaylist(p, g);
+        }, () => { sideScope(); openSideGroups(); });
+      },
+      (pid, g) => (pid === null ? sideGroup === GFAV : pl && pid === pl.id && g === sideGroup));
     box.classList.remove('hidden');
     $('side').classList.add('with-groups');
+    if (focusPid !== undefined) {
+      const heads = [...box.querySelectorAll('.pl-head')];
+      const idx = Store.playlists().filter(p => !p.off).findIndex(p => p.id === focusPid);
+      if (heads[idx]) { Nav.focus(heads[idx]); return; }
+    }
     Nav.focus(box.querySelector('.grp.on') || box.firstChild);
   }
   function hideSideGroups() { $('side-groups').classList.add('hidden'); $('side').classList.remove('with-groups'); }
