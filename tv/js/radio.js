@@ -5,7 +5,7 @@ const Radio = (() => {
   const box = document.getElementById('radio');
   const canvas = document.getElementById('radio-bg');
   const ctx = canvas.getContext('2d');
-  const DEFAULT = [[76, 141, 255], [123, 92, 255], [40, 200, 220], [255, 92, 170]];
+  const DEFAULT = [[61, 90, 254], [124, 77, 255], [0, 184, 212]];   // как в Android
   let colors = DEFAULT, on = false, raf = 0, ch = null, songTimer = null, token = 0;
   const t0 = performance.now();
 
@@ -27,50 +27,121 @@ const Radio = (() => {
     await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = u; });
     return img;
   }
-  // Яркие и насыщенные цвета картинки (до четырёх)
+  // Главные цвета значка (как в Android, AudioGlow.colorsOf): до трёх сочных оттенков; серое, белое и чёрное не считаются
+  function hsv(r, g, b) {
+    r /= 255; g /= 255; b /= 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+    let h = 0;
+    if (d) h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    return [(h * 60 + 360) % 360, mx ? d / mx : 0, mx];
+  }
+  function rgb(h, s, v) {
+    const f = n => { const k = (n + h / 60) % 6; return Math.round(255 * (v - v * s * Math.max(0, Math.min(k, 4 - k, 1)))); };
+    return [f(5), f(3), f(1)];
+  }
   function colorsOf(img) {
-    const c = document.createElement('canvas');
-    c.width = c.height = 24;
+    const n = 24, c = document.createElement('canvas');
+    c.width = c.height = n;
     const g = c.getContext('2d');
-    g.drawImage(img, 0, 0, 24, 24);
-    const d = g.getImageData(0, 0, 24, 24).data;
-    const buckets = new Map();
+    g.drawImage(img, 0, 0, n, n);
+    const d = g.getImageData(0, 0, n, n).data;
+    const bins = 12, weight = new Array(bins).fill(0), sumH = new Array(bins).fill(0), sumS = new Array(bins).fill(0);
     for (let i = 0; i < d.length; i += 4) {
       if (d[i + 3] < 128) continue;
-      const r = d[i], gr = d[i + 1], b = d[i + 2];
-      const mx = Math.max(r, gr, b), mn = Math.min(r, gr, b);
-      if (mx < 60 || mx - mn < 40) continue;   // тёмное и серое не берём
-      const k = (r >> 5) + ',' + (gr >> 5) + ',' + (b >> 5);
-      const o = buckets.get(k) || { n: 0, r: 0, g: 0, b: 0 };
-      o.n++; o.r += r; o.g += gr; o.b += b;
-      buckets.set(k, o);
+      const [h, s, v] = hsv(d[i], d[i + 1], d[i + 2]);
+      if (s < 0.25 || v < 0.2) continue;
+      const b = Math.min(bins - 1, Math.floor(h / (360 / bins)));
+      const w = s * v;
+      weight[b] += w; sumH[b] += h * w; sumS[b] += s * w;
     }
-    const top = [...buckets.values()].sort((a, b) => b.n - a.n).slice(0, 4).map(o => [o.r / o.n | 0, o.g / o.n | 0, o.b / o.n | 0]);
-    return top.length ? top : DEFAULT;
+    const top = [...Array(bins).keys()].filter(b => weight[b] > 0).sort((a, b) => weight[b] - weight[a]);
+    if (!top.length) return DEFAULT;
+    const hues = top.filter(b => weight[b] >= weight[top[0]] * 0.15).slice(0, 3).map(b => [sumH[b] / weight[b], Math.max(0.7, sumS[b] / weight[b])]);
+    // Значок одного цвета — добавляем соседние оттенки, чтобы фон всё-таки переливался
+    if (hues.length === 1) { hues.push([(hues[0][0] + 35) % 360, hues[0][1]]); hues.push([(hues[0][0] + 325) % 360, hues[0][1]]); }
+    return hues.map(x => rgb(x[0], x[1], 1));
   }
 
-  // Живой фон: цветные пятна медленно плавают и дышат
-  function frame(now) {
+  // ---------- Живой фон, как в Android (AudioGlow.kt): пять плавающих пятен, искры и круги от значка ----------
+  // Звук родного плеера Samsung программе не слышен, поэтому «дыхание» фона идёт ровным ритмом, а не точно в такт музыке
+  const SPOTS = 5, SPARKS = 46, RINGS = 3, RING_GAP = 4000, RING_LIFE = 2400;
+  const SPEED_X = [0.46, 0.34, 0.26, 0.52, 0.38], SPEED_Y = [0.37, 0.29, 0.41, 0.31, 0.48], PHASE = [0, 2.1, 4.2, 1.2, 3.3];
+  const spark = [];
+  (function () {
+    let seed = 7;
+    const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    for (let i = 0; i < SPARKS; i++) spark.push({ x: rnd(), y: rnd(), size: 0.8 + rnd() * 1.6, speed: 0.006 + rnd() * 0.016, phase: rnd() * 6.28 });
+  })();
+  const rings = new Array(RINGS).fill(0);
+  let lastRing = 0, nextGap = 5000;
+  function spotColor(i) {
+    const c = colors[i % colors.length];
+    if (i < colors.length) return c;
+    const [h, s, v] = hsv(c[0], c[1], c[2]);
+    return rgb((h + 22 * Math.floor(i / colors.length)) % 360, s, v);
+  }
+  function rgba(c, a) { return `rgba(${c[0]},${c[1]},${c[2]},${a})`; }
+  function frame(nowMs) {
     if (!on) return;
     const w = canvas.width = 960, h = canvas.height = 540;   // половинный размер — телевизору легче
-    const s = (now - t0) / 1000;
-    ctx.fillStyle = '#05070b';
+    const t = (nowMs - t0) / 1000;
+    // «Музыка»: мягкая пульсация, как средний уровень песни
+    const level = Math.max(0, Math.min(1, 0.45 + 0.3 * Math.sin(t * 2.1) * Math.sin(t * 0.37 + 1) + 0.15 * Math.sin(t * 5.3)));
+    ctx.fillStyle = '#07080c';
     ctx.fillRect(0, 0, w, h);
-    ctx.globalCompositeOperation = 'lighter';
-    for (let i = 0; i < 5; i++) {
-      const c = colors[i % colors.length];
-      const x = w * (0.5 + 0.38 * Math.sin(s * (0.11 + i * 0.03) + i * 1.7));
-      const y = h * (0.5 + 0.34 * Math.cos(s * (0.09 + i * 0.025) + i * 2.3));
-      const r = h * (0.55 + 0.12 * Math.sin(s * 0.7 + i));
-      const gr = ctx.createRadialGradient(x, y, 0, x, y, r);
-      gr.addColorStop(0, `rgba(${c[0]},${c[1]},${c[2]},0.42)`);
-      gr.addColorStop(1, `rgba(${c[0]},${c[1]},${c[2]},0)`);
+    const r = Math.max(w, h) * 0.6;
+    for (let i = 0; i < SPOTS; i++) {
+      const c = spotColor(i);
+      const cx = w * (0.5 + 0.44 * Math.sin(t * SPEED_X[i] + PHASE[i]));
+      const cy = h * (0.5 + 0.42 * Math.cos(t * SPEED_Y[i] + PHASE[i] * 1.7));
+      const size = (i < 3 ? 1 : 0.62) * (1 + 0.22 * level) * r;
+      const a = (170 + 85 * level) / 255;
+      const gr = ctx.createRadialGradient(cx, cy, 0, cx, cy, size);
+      gr.addColorStop(0, rgba(c, a * 190 / 255));
+      gr.addColorStop(0.5, rgba(c, a * 85 / 255));
+      gr.addColorStop(1, rgba(c, 0));
       ctx.fillStyle = gr;
       ctx.fillRect(0, 0, w, h);
     }
-    ctx.globalCompositeOperation = 'source-over';
+    // Круги от значка: изредка, бледные, растут и тают
+    if (nowMs - lastRing > nextGap) {
+      const free = rings.indexOf(0);
+      if (free >= 0) { rings[free] = nowMs; lastRing = nowMs; nextGap = RING_GAP + Math.random() * 3000; }
+    }
+    const logo = document.getElementById('radio-logo').getBoundingClientRect();
+    const box2 = box.getBoundingClientRect();
+    const k = w / (box2.width || 1920);
+    const ox = ((logo.left + logo.width / 2) - box2.left) * k || w / 2;
+    const oy = ((logo.top + logo.height / 2) - box2.top) * k || h / 2;
+    const r0 = (logo.width / 2) * k || Math.min(w, h) * 0.17;
+    const grow = Math.min(w, h) * 0.42;
+    for (let i = 0; i < RINGS; i++) {
+      if (!rings[i]) continue;
+      const p = (nowMs - rings[i]) / RING_LIFE;
+      if (p >= 1) { rings[i] = 0; continue; }
+      const ease = 1 - (1 - p) * (1 - p);
+      ctx.strokeStyle = `rgba(255,255,255,${0.27 * (1 - p)})`;
+      ctx.lineWidth = 2.5 - 1.5 * p;
+      ctx.beginPath();
+      ctx.arc(ox, oy, r0 + grow * ease, 0, 6.2832);
+      ctx.stroke();
+    }
+    // Искры: мелкие светящиеся точки медленно плывут вверх и мерцают
+    for (let i = 0; i < SPARKS; i++) {
+      const s = spark[i];
+      let y = (s.y - t * s.speed) % 1;
+      if (y < 0) y += 1;
+      const x = s.x + 0.012 * Math.sin(t * 0.5 + s.phase);
+      const tw = 0.5 + 0.5 * Math.sin(t * (0.9 + s.speed * 30) + s.phase);
+      const a = Math.min(255, 40 + 120 * tw + 90 * level) / 255;
+      const c = colors[i % colors.length];
+      ctx.fillStyle = rgba([c[0] | 0xb0, c[1] | 0xb0, c[2] | 0xb0], a);
+      ctx.beginPath();
+      ctx.arc(x * w, y * h, s.size * 1.5 * (1 + 0.5 * level), 0, 6.2832);
+      ctx.fill();
+    }
     // Значок слегка покачивается
-    document.getElementById('radio-card').style.transform = `translateY(${Math.sin(s * 0.8) * 8}px)`;
+    document.getElementById('radio-card').style.transform = `translateY(${Math.sin(t * 0.8) * 8}px)`;
     setTimeout(() => { raf = requestAnimationFrame(frame); }, 33);
   }
 
