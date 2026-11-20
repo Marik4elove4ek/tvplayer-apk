@@ -100,8 +100,6 @@
     $('pick').classList.add('center');
     pick(question, [{ label: yesLabel }, { label: t('cancel') }], i => (i === 0 ? onYes() : (onNo ? onNo() : back())), () => (onNo ? onNo() : back()));
   }
-  // Удерживать «Назад» где угодно — вопрос о выходе, курсор сразу на «Выйти»
-  Nav.onLongBack(() => { if ($('pick').classList.contains('hidden') && $('input').classList.contains('hidden')) askExit(); });
   function askExit() {
     ask(t('exit_q'), t('exit_app'), () => {
       Player.stop();
@@ -248,7 +246,7 @@
   // ---------- Настройки: порядок как в Android (от главного к редкому) ----------
   const LANGS = [['en', 'English'], ['ru', 'Русский'], ['he', 'עברית'], ['fr', 'Français'], ['ar', 'العربية'],
     ['it', 'Italiano'], ['ja', '日本語'], ['ko', '한국어'], ['zh', '中文']];
-  const VERSION = '0.21';
+  const VERSION = '0.22';
   // Если телевизор даёт странице не 1920 точек в ширину, вся страница уменьшается под экран — ничего не обрезается
   (function fitScreen() {
     const k = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
@@ -2305,6 +2303,21 @@
     if (!r.ok) throw new Error('HTTP ' + r.status);
     return r.text();
   }
+  // Скачанная версия — туда же, откуда её берёт запуск (js/boot.js)
+  async function saveUpdate(v, files) {
+    const d = await new Promise((res, rej) => {
+      const r = indexedDB.open('lupo-update', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('files');
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    });
+    await new Promise((res, rej) => {
+      const tx = d.transaction('files', 'readwrite');
+      tx.objectStore('files').put({ v, files, bad: null, at: Date.now() }, 'current');
+      tx.oncomplete = res;
+      tx.onerror = () => rej(tx.error);
+    });
+  }
   async function checkUpdate(back) {
     toast(t('update_checking'));
     let info;
@@ -2322,18 +2335,7 @@
         const files = {};
         for (const f of info.files) files[f] = await updText(UPDATE_URL + (info.base || '') + f, 30000);
         if (!files['js/app.js'] || !files['js/app.js'].includes("VERSION = '" + info.v + "'")) throw new Error('files of another version');
-        const d = await new Promise((res, rej) => {
-          const r = indexedDB.open('lupo-update', 1);
-          r.onupgradeneeded = () => r.result.createObjectStore('files');
-          r.onsuccess = () => res(r.result);
-          r.onerror = () => rej(r.error);
-        });
-        await new Promise((res, rej) => {
-          const tx = d.transaction('files', 'readwrite');
-          tx.objectStore('files').put({ v: info.v, files, bad: null, at: Date.now() }, 'current');
-          tx.oncomplete = res;
-          tx.onerror = () => rej(tx.error);
-        });
+        await saveUpdate(info.v, files);
         Player.stop();
         location.reload();
       } catch (e) {
@@ -2343,6 +2345,25 @@
       }
     }, back);
   }
+
+  // Телевизор часто не закрывает Лупо, а прячет его (кнопка «Домой», удержание «Назад», выключение пультом).
+  // Тогда при возвращении программа не запускается заново и новую версию не проверяет — проверяем сами:
+  // есть новее — тихо скачиваем и перезапускаемся (не чаще раза в 20 минут)
+  let lastResumeCheck = Date.now();
+  document.addEventListener('visibilitychange', async () => {
+    if (document.hidden || Date.now() - lastResumeCheck < 20 * 60000) return;
+    lastResumeCheck = Date.now();
+    try {
+      const info = JSON.parse(await updText(UPDATE_URL + 'version.json?t=' + Date.now(), 10000));
+      if (!info || !newerVer(info.v, VERSION)) return;
+      const files = {};
+      for (const f of info.files) files[f] = await updText(UPDATE_URL + (info.base || '') + f, 30000);
+      if (!files['js/app.js'].includes("VERSION = '" + info.v + "'")) return;
+      await saveUpdate(info.v, files);
+      Player.stop();
+      location.reload();
+    } catch (e) { Store.addLog(new Date().toLocaleString(LANG) + ' — update on return\n' + (e && (e.message || e.name) || e)); }
+  });
 
   // ---------- Старт: открываем там, где закрыли ----------
   // Проверочная сборка на телевизоре Марка: при переустановке память программы стирается.
