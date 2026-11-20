@@ -246,7 +246,7 @@
   // ---------- Настройки: порядок как в Android (от главного к редкому) ----------
   const LANGS = [['en', 'English'], ['ru', 'Русский'], ['he', 'עברית'], ['fr', 'Français'], ['ar', 'العربية'],
     ['it', 'Italiano'], ['ja', '日本語'], ['ko', '한국어'], ['zh', '中文']];
-  const VERSION = '0.27';
+  const VERSION = '0.28';
   // Если телевизор даёт странице не 1920 точек в ширину, вся страница уменьшается под экран — ничего не обрезается
   (function fitScreen() {
     const k = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
@@ -542,7 +542,13 @@
       const d = mine ? { channels } : Store.channels(p.id);
       noAdult(d && d.channels).forEach(c => { const k = p.id + '|' + c.name; if (!byKey.has(k)) byKey.set(k, mine ? c : Object.assign({ _pl: p.id }, c)); });
     });
-    return f.map(k => byKey.get(k)).filter(Boolean);
+    const out = f.map(k => byKey.get(k)).filter(Boolean);
+    // Программа передач для каналов из других плейлистов
+    new Set(out.map(c => c._pl).filter(Boolean)).forEach(pid => {
+      const d = Store.channels(pid);
+      if (d) Epg.ensure(pid, d.epg || [], d.channels);
+    });
+    return out;
   }
   function inGroup(g) {
     if (g === GFAV) return gfavCache = allFavorites();
@@ -1742,7 +1748,22 @@
     Player.split(streamUrl(shown[cur]), splitList[split].url, splitMode);
     Nav.setScope($('scr-player'), splitEnd, splitKeys);
     toast(dispName(shown[cur]) + '  |  ' + dispName(splitList[split]));
+    // Через 9 с проверяем правую половину: время в ней должно идти. Не идёт — другой способ; оба способа
+    // не дали картинку — записываем в журнал, что ответил телевизор
+    clearTimeout(splitCheck);
+    const my = ++splitRun;
+    splitCheck = setTimeout(() => {
+      if (my !== splitRun || split < 0) return;
+      const st = Player.splitState();
+      const right = st.find(x => x.i === 1);
+      const ok = right && right.time > 500 && (right.web || right.state === 'PLAYING');
+      Store.addLog(new Date().toLocaleString(LANG) + ' — ' + t('split_watch') + ' (' + splitMode + ')\n' + JSON.stringify(st));
+      if (ok) return;
+      if (splitMode === 'multiview') { splitStart(splitList, split, 'web'); return; }
+      toast(t('split_watch') + ': ' + t('split_failed'));
+    }, 9000);
   }
+  let splitCheck = null, splitRun = 0;
   function splitKeys(e) {
     const k = e.keyCode;
     if (k === 38 || k === 427 || k === 40 || k === 428) {
@@ -1753,6 +1774,7 @@
     }
     if (k === 13) {
       const c = splitList[split];
+      clearTimeout(splitCheck); splitRun++;
       split = -1;
       Player.splitStop();
       playerScope();
@@ -1763,7 +1785,7 @@
     }
     return ![27, 8, 10009, 461].includes(k);   // «Назад» — к обычному просмотру
   }
-  function splitEnd() { split = -1; Player.splitStop(); playerScope(); play(cur); }
+  function splitEnd() { clearTimeout(splitCheck); splitRun++; split = -1; Player.splitStop(); playerScope(); play(cur); }
   // Второй видеоресурс телевизор не дал — пробуем правый канал через браузерный плеер; не вышло и так — сообщаем
   Player.on('splitError', e => {
     if (split < 0) return;
@@ -1921,7 +1943,7 @@
     const c = shown[cur];
     // Родной плеер не открыл канал — пробуем запасной движок; запасной тоже не смог — забываем его для канала
     if (c && split < 0 && toWebEngine(c, msg)) return;
-    if (c && webEngine(c) && Player.usingWeb()) setWeb(c, false);
+    if (c && webEngine(c) && Player.usingWeb() && !Player.everPlayed()) setWeb(c, false);
     toast(t('play_error'));
     const d = new Date();
     Store.addLog(d.toLocaleDateString(LANG) + ' ' + hm(d) + ' — ' + (c ? c.name : '') + '\n' + msg + (c ? '\n' + c.url : ''));

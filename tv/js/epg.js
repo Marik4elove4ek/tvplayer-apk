@@ -1,7 +1,12 @@
 // Программа передач (XMLTV, в том числе .gz). Читается по частям, хранятся только нужные каналы
 // и только с «сейчас минус 3 часа» до «плюс 4 дня» — чтобы хватало памяти телевизора.
 const Epg = (() => {
-  let byKey = new Map();      // ключ канала → [{s, e, t, d}] по времени
+  // Программа каждого плейлиста отдельно: плейлист → (ключ канала → [{s, e, t, d}] по времени).
+  // current — открытый плейлист; каналы из других плейлистов (общее избранное) несут свой _pl
+  const maps = new Map();
+  let current = null;
+  const EMPTY = new Map();
+  const loading = new Set();
   const listeners = [];
 
   function norm(s) {
@@ -174,25 +179,30 @@ const Epg = (() => {
     if (!urls.length) return;
     const fresh = await load(urls, channels);
     try { localStorage.setItem('epgrep.' + playlistId, JSON.stringify(lastLoad)); } catch (e) { }
-    if (fresh.size) { byKey = fresh; saveCache(playlistId, fresh); listeners.forEach(f => f()); }
+    if (fresh.size) { maps.set(playlistId, fresh); saveCache(playlistId, fresh); listeners.forEach(f => f()); }
   }
   function lastReport(playlistId) { try { return JSON.parse(localStorage.getItem('epgrep.' + playlistId)); } catch (e) { return null; } }
 
+  // Программа плейлиста: сохранённая — сразу, свежая (если сохранённой больше 6 часов) — в фоне
+  async function ensure(playlistId, urls, channels) {
+    if (loading.has(playlistId)) return;
+    loading.add(playlistId);
+    try {
+      const cached = await readCache(playlistId);
+      if (cached) { maps.set(playlistId, new Map(cached.data)); listeners.forEach(f => f()); }
+      if (!urls.length || (cached && Date.now() - cached.time < 6 * 3600e3)) return;
+      const fresh = await load(urls, channels);
+      try { localStorage.setItem('epgrep.' + playlistId, JSON.stringify(lastLoad)); } catch (e) { }
+      if (fresh.size) { maps.set(playlistId, fresh); saveCache(playlistId, fresh); listeners.forEach(f => f()); }
+    } finally { loading.delete(playlistId); }
+  }
+  // Открыт плейлист: его программа — главная
   async function open(playlistId, urls, channels) {
-    const cached = await readCache(playlistId);
-    if (cached) { byKey = new Map(cached.data); listeners.forEach(f => f()); }
-    if (!urls.length) return;
-    if (cached && Date.now() - cached.time < 6 * 3600e3) return;
-    const fresh = await load(urls, channels);
-    try { localStorage.setItem('epgrep.' + playlistId, JSON.stringify(lastLoad)); } catch (e) { }
-    if (fresh.size) {
-      byKey = fresh;
-      saveCache(playlistId, fresh);
-      listeners.forEach(f => f());
-    }
+    current = playlistId;
+    return ensure(playlistId, urls, channels);
   }
 
-  function list(c) { return byKey.get(keyOf(c)) || []; }
+  function list(c) { return (maps.get((c && c._pl) || current) || EMPTY).get(keyOf(c)) || []; }
   function now(c, at) {
     at = at || Date.now();
     const l = list(c);
@@ -200,5 +210,5 @@ const Epg = (() => {
     return i < 0 ? null : { cur: l[i], next: l[i + 1] || null };
   }
 
-  return { open, reload, lastReport, list, now, onChange: f => listeners.push(f), time };
+  return { open, ensure, reload, lastReport, list, now, onChange: f => listeners.push(f), time };
 })();

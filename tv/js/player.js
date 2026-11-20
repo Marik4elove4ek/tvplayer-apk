@@ -47,17 +47,22 @@ const Player = (() => {
     stop();
     const my = ++token;
     paused = false;
+    everPlayed = false;
     engineWeb = !!(opts && opts.web) || !av;
     if (av && !engineWeb) return startAv(url, my);
     const isHls = /m3u8/i.test(url);
     const isTs = !isHls && (/\.ts(\?|$)/i.test(url) || /\/live\/[^/]+\/[^/]+\/\d+(\?|$)/i.test(url));
     const sec = BUF[buffer];
     if (isHls && window.Hls && Hls.isSupported()) {
-      hls = new Hls({ liveSyncDurationCount: Math.max(2, Math.round(sec / 2)), maxBufferLength: sec * 6, enableWorker: true });
+      hls = new Hls({ liveSyncDurationCount: Math.max(2, Math.round(sec / 2)), maxBufferLength: sec * 6, enableWorker: true,
+        startFragPrefetch: true, manifestLoadingMaxRetry: 4, levelLoadingMaxRetry: 6, fragLoadingMaxRetry: 8, nudgeMaxRetry: 10 });
+      let netRetries = 0;
       hls.subtitleDisplay = true;
       hls.on(Hls.Events.ERROR, (ev, d) => {
         if (!d.fatal) return;
         if (d.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
+        // Сеть моргнула — продолжаем загрузку сами (до пяти раз подряд), а не показываем ошибку
+        else if (d.type === Hls.ErrorTypes.NETWORK_ERROR && everPlayed && netRetries++ < 5) setTimeout(() => { if (my === token && hls) hls.startLoad(); }, 1000);
         else emit('error', 'HLS: ' + (d.details || d.type) + (d.response && d.response.code ? ' (' + d.response.code + ')' : ''));
       });
       hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, () => emit('tracks'));
@@ -77,7 +82,17 @@ const Player = (() => {
   }
   video.addEventListener('error', () => { if ((!av || engineWeb) && !hls && !ts && video.error) emit('error', 'video: ' + (video.error.message || video.error.code)); });
   video.addEventListener('loadedmetadata', () => { if (!hls) emit('tracks'); });
-  video.addEventListener('playing', () => emit('playing'));
+  video.addEventListener('playing', () => { everPlayed = true; emit('playing'); });
+  // Браузерный плеер «застыл» (время не идёт): сначала подталкиваем к живому краю эфира, не помогло — эфир открывается заново
+  let everPlayed = false, lastT = -1, stuck = 0;
+  setInterval(() => {
+    if (!playing || !engineWeb || paused || sp.length || !(hls || ts)) { stuck = 0; lastT = -1; return; }
+    const t = video.currentTime;
+    if (t !== lastT) { lastT = t; stuck = 0; return; }
+    stuck += 2;
+    if (stuck === 6 && hls) { try { hls.startLoad(); if (hls.liveSyncPosition) video.currentTime = hls.liveSyncPosition; video.play().catch(() => { }); } catch (e) { } }
+    if (stuck >= 14) { stuck = 0; emit('ended'); }
+  }, 2000);
   video.addEventListener('ended', () => emit('ended'));
 
   // ---------- Samsung AVPlay ----------
@@ -101,7 +116,7 @@ const Player = (() => {
       });
       av.prepareAsync(() => {
         if (my !== token) return;
-        try { av.play(); playing = true; } catch (e) { emit('error', 'AVPlay play: ' + (e.message || e.name || e)); return; }
+        try { av.play(); playing = true; everPlayed = true; } catch (e) { emit('error', 'AVPlay play: ' + (e.message || e.name || e)); return; }
         emit('playing');
         // Дорожки доступны только во время показа
         setTimeout(() => { if (my === token) emit('tracks'); }, 600);
@@ -266,6 +281,13 @@ const Player = (() => {
       try { p.play(); if (i === 0) emit('playing'); } catch (e) { emit('splitError', { i, msg: 'play ' + (i + 1) + ': ' + (e.message || e.name || e) }); }
     }, e => { if (my === token) emit('splitError', { i, msg: 'prepare ' + (i + 1) + ': ' + (e && (e.message || e.name) || e) }); });
   }
+  // Что сейчас с двумя половинами (для журнала и проверки «правый экран чёрный»)
+  function splitState() {
+    const out = [];
+    sp.forEach((p, i) => { let st = '?', tm = -1; try { st = p.getState(); } catch (e) { } try { tm = p.getCurrentTime(); } catch (e) { } out.push({ i, state: st, time: tm }); });
+    if (document.documentElement.classList.contains('split-web')) out.push({ i: 1, state: 'video rs' + video.readyState + (video.error ? ' err' + video.error.code : ''), time: Math.round(video.currentTime * 1000), web: true });
+    return out;
+  }
   function split(url1, url2, mode) {
     stop();
     splitStop();
@@ -300,5 +322,5 @@ const Player = (() => {
     }
   }
 
-  return { usingWeb: () => engineWeb, pause, pos, duration, seekTo, setSize, isPaused: () => paused, split, splitStop, canSplit: !!(av && store), setLeveler, info, start, stop, on, audioTracks, setAudio, subTracks, setSub, setBuffer, setRect, isPlaying: () => playing, native: !!av };
+  return { everPlayed: () => everPlayed, splitState, usingWeb: () => engineWeb, pause, pos, duration, seekTo, setSize, isPaused: () => paused, split, splitStop, canSplit: !!(av && store), setLeveler, info, start, stop, on, audioTracks, setAudio, subTracks, setSub, setBuffer, setRect, isPlaying: () => playing, native: !!av };
 })();
