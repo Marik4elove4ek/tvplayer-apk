@@ -62,8 +62,14 @@ const Nav = (() => {
       if (k === 38 || k === 40) { e.preventDefault(); leaveInput(el, false); move(DIR[k]); return; }
       return; // буквы, стирание, ◀ ▶ внутри строки — полю
     }
+    // «Назад»: коротко — шаг назад (срабатывает, когда кнопку отпустили); удерживать — вопрос о выходе
+    if (BACK.includes(k)) {
+      e.preventDefault();
+      if (e.repeat || backHold) return;
+      backHold = { fired: false, timer: setTimeout(() => { if (backHold) { backHold.fired = true; if (onLongBack) onLongBack(); } }, 800) };
+      return;
+    }
     if (onKey && onKey(e) === true) { e.preventDefault(); return; }
-    if (BACK.includes(k)) { e.preventDefault(); if (onBack) onBack(); return; }
     // Длинный текст (политика, журнал): ▲▼ листают
     if (el && el.classList.contains('doc-text') && (k === 38 || k === 40)) {
       e.preventDefault();
@@ -80,7 +86,22 @@ const Nav = (() => {
     }
   });
 
+  let backHold = null, onLongBack = null;
+  document.addEventListener('keyup', e => {
+    const k = e.keyCode;
+    if (!BACK.includes(k) || !backHold) return;
+    e.preventDefault();
+    clearTimeout(backHold.timer);
+    const h = backHold;
+    backHold = null;
+    if (h.fired) return;
+    const down = { keyCode: k, preventDefault() { } };
+    if (onKey && onKey(down) === true) return;
+    if (onBack) onBack();
+  });
+
   return {
+    onLongBack(f) { onLongBack = f; },
     setScope(el, back, key) { scope = el; onBack = back; onKey = key || null; },
     // Вернуться туда, где был пульт (после вопроса «Да/Отмена»)
     state() { const s = scope, b = onBack, k = onKey, f = document.activeElement; return () => { scope = s; onBack = b; onKey = k; focus(f); }; },

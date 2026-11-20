@@ -120,6 +120,26 @@ const M3U = (() => {
     return { channels, epg: [`${base}/xmltv.php?username=${u}&password=${pw}`] };
   }
 
+  function guessEpg(url, channels) {
+    try {
+      const u = new URL(url);
+      const user = u.searchParams.get('username'), pass = u.searchParams.get('password');
+      if (/get\.php$/i.test(u.pathname) && user && pass)
+        return u.origin + '/xmltv.php?username=' + encodeURIComponent(user) + '&password=' + encodeURIComponent(pass);
+    } catch (e) { }
+    // Каналы с одного сервера Xtream: http://сервер/live/логин/пароль/номер.ts (или без /live/)
+    const counts = new Map();
+    channels.slice(0, 300).forEach(c => {
+      const m = /^(https?:\/\/[^/]+)\/(?:live\/)?([^/]+)\/([^/]+)\/\d+(\.\w+)?(\?|$)/.exec(c.url || '');
+      if (m) { const k = m[1] + '|' + m[2] + '|' + m[3]; counts.set(k, (counts.get(k) || 0) + 1); }
+    });
+    let best = null, n = 0;
+    counts.forEach((v, k) => { if (v > n) { n = v; best = k; } });
+    if (!best || n < Math.min(5, channels.length)) return null;
+    const [origin, user, pass] = best.split('|');
+    return origin + '/xmltv.php?username=' + encodeURIComponent(decodeURIComponent(user)) + '&password=' + encodeURIComponent(decodeURIComponent(pass));
+  }
+
   async function load(p, noGroup, channelName) {
     const own = (p.epg || '').split(/[,\n ;]/).map(s => s.trim()).filter(s => /^http/i.test(s));
     let res;
@@ -127,6 +147,12 @@ const M3U = (() => {
     else {
       res = parse(await getText(p.url.trim()), noGroup, channelName);
       if (!res.channels.length) throw new LupoError('err_empty_playlist');
+      // В плейлисте нет ссылки на программу — ищем её сами: у провайдеров Xtream (ссылка get.php или каналы вида
+      // /live/логин/пароль/номер) программа лежит на том же сервере в xmltv.php. Вписывать её вручную не нужно
+      if (!res.epg.length) {
+        const g = guessEpg(p.url.trim(), res.channels);
+        if (g) res.epg.push(g);
+      }
     }
     // Адрес программы, вписанный в сам плейлист, помним отдельно — он показывается серым в поле EPG
     res.epgPlaylist = res.epg.slice();

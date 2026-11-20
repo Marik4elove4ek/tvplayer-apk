@@ -247,7 +247,17 @@ const STRINGS = {
   "clock_left": "Слева вверху",
   "clock_white": "Белые",
   "clock_rainbow": "Переливающиеся",
-  "clock_style": "Вид часов"
+  "clock_style": "Вид часов",
+  "st_check_update": "Проверить обновление",
+  "update_checking": "Проверяю обновление…",
+  "update_latest": "У вас последняя версия {}",
+  "update_check_failed": "Не удалось проверить обновление. Проверьте интернет.",
+  "update_title": "Есть новая версия {}",
+  "update_msg": "Обновить Lupo Player сейчас? Плейлисты и настройки сохранятся.",
+  "update_btn": "Обновить",
+  "update_later": "Позже",
+  "update_downloading": "Загрузка новой версии…",
+  "update_failed": "Не удалось скачать обновление"
  },
  "en": {
   "app_name": "Lupo Player",
@@ -496,7 +506,17 @@ const STRINGS = {
   "clock_left": "Top left",
   "clock_white": "White",
   "clock_rainbow": "Shimmering",
-  "clock_style": "Clock style"
+  "clock_style": "Clock style",
+  "st_check_update": "Check for updates",
+  "update_checking": "Checking for updates…",
+  "update_latest": "You have the latest version {}",
+  "update_check_failed": "Couldn’t check for updates. Check your internet connection.",
+  "update_title": "New version {} available",
+  "update_msg": "Update Lupo Player now? Playlists and settings will be kept.",
+  "update_btn": "Update",
+  "update_later": "Later",
+  "update_downloading": "Downloading new version…",
+  "update_failed": "Could not download the update"
  },
  "he": {
   "app_name": "Lupo Player",
@@ -745,7 +765,17 @@ const STRINGS = {
   "clock_left": "למעלה משמאל",
   "clock_white": "לבן",
   "clock_rainbow": "צבעוני מתחלף",
-  "clock_style": "סגנון השעון"
+  "clock_style": "סגנון השעון",
+  "st_check_update": "בדיקת עדכון",
+  "update_checking": "בודק עדכונים…",
+  "update_latest": "מותקנת הגרסה העדכנית {}",
+  "update_check_failed": "לא ניתן לבדוק עדכונים. בדקו את החיבור לאינטרנט.",
+  "update_title": "גרסה חדשה {} זמינה",
+  "update_msg": "לעדכן את Lupo Player עכשיו? רשימות ההשמעה וההגדרות יישמרו.",
+  "update_btn": "עדכון",
+  "update_later": "אחר כך",
+  "update_downloading": "מוריד גרסה חדשה…",
+  "update_failed": "לא ניתן להוריד את העדכון"
  },
  "ar": {
   "app_name": "Lupo Player",
@@ -994,7 +1024,17 @@ const STRINGS = {
   "clock_left": "أعلى اليسار",
   "clock_white": "بيضاء",
   "clock_rainbow": "متلألئة",
-  "clock_style": "شكل الساعة"
+  "clock_style": "شكل الساعة",
+  "st_check_update": "التحقق من التحديثات",
+  "update_checking": "جارٍ التحقق من التحديثات…",
+  "update_latest": "لديك أحدث إصدار {}",
+  "update_check_failed": "تعذّر التحقق من التحديثات. تحقق من اتصال الإنترنت.",
+  "update_title": "يتوفر إصدار جديد {}",
+  "update_msg": "تحديث Lupo Player الآن؟ ستبقى قوائم التشغيل والإعدادات.",
+  "update_btn": "تحديث",
+  "update_later": "لاحقًا",
+  "update_downloading": "جارٍ تنزيل الإصدار الجديد…",
+  "update_failed": "تعذر تنزيل التحديث"
  },
  "fr": {
   "app_name": "Lupo Player",
@@ -1243,7 +1283,17 @@ const STRINGS = {
   "clock_left": "En haut à gauche",
   "clock_white": "Blanche",
   "clock_rainbow": "Chatoyante",
-  "clock_style": "Style de l’horloge"
+  "clock_style": "Style de l’horloge",
+  "st_check_update": "Rechercher une mise à jour",
+  "update_checking": "Recherche de mise à jour…",
+  "update_latest": "Vous avez la dernière version {}",
+  "update_check_failed": "Impossible de vérifier les mises à jour. Vérifiez votre connexion Internet.",
+  "update_title": "Nouvelle version {} disponible",
+  "update_msg": "Mettre à jour Lupo Player maintenant ? Les playlists et réglages sont conservés.",
+  "update_btn": "Mettre à jour",
+  "update_later": "Plus tard",
+  "update_downloading": "Téléchargement de la nouvelle version…",
+  "update_failed": "Échec du téléchargement de la mise à jour"
  },
  "it": {
   "app_name": "Lupo Player",
@@ -1492,7 +1542,17 @@ const STRINGS = {
   "clock_left": "In alto a sinistra",
   "clock_white": "Bianco",
   "clock_rainbow": "Cangiante",
-  "clock_style": "Stile dell’orologio"
+  "clock_style": "Stile dell’orologio",
+  "st_check_update": "Controlla aggiornamenti",
+  "update_checking": "Controllo aggiornamenti…",
+  "update_latest": "Hai l’ultima versione {}",
+  "update_check_failed": "Impossibile controllare gli aggiornamenti. Controlla la connessione a Internet.",
+  "update_title": "Nuova versione {} disponibile",
+  "update_msg": "Aggiornare Lupo Player ora? Playlist e impostazioni restano.",
+  "update_btn": "Aggiorna",
+  "update_later": "Più tardi",
+  "update_downloading": "Download della nuova versione…",
+  "update_failed": "Impossibile scaricare l’aggiornamento"
  },
  "ja": {
   "app_name": "Lupo Player",
@@ -1741,7 +1801,17 @@ const STRINGS = {
   "clock_left": "左上",
   "clock_white": "白",
   "clock_rainbow": "きらめき",
-  "clock_style": "時計のスタイル"
+  "clock_style": "時計のスタイル",
+  "st_check_update": "アップデートを確認",
+  "update_checking": "アップデートを確認しています…",
+  "update_latest": "最新バージョン {} です",
+  "update_check_failed": "アップデートを確認できませんでした。インターネット接続を確認してください。",
+  "update_title": "新しいバージョン {} があります",
+  "update_msg": "Lupo Player を今すぐ更新しますか？プレイリストと設定はそのまま残ります。",
+  "update_btn": "更新",
+  "update_later": "あとで",
+  "update_downloading": "新しいバージョンをダウンロード中…",
+  "update_failed": "更新をダウンロードできませんでした"
  },
  "ko": {
   "app_name": "Lupo Player",
@@ -1990,7 +2060,17 @@ const STRINGS = {
   "clock_left": "왼쪽 위",
   "clock_white": "흰색",
   "clock_rainbow": "반짝임",
-  "clock_style": "시계 스타일"
+  "clock_style": "시계 스타일",
+  "st_check_update": "업데이트 확인",
+  "update_checking": "업데이트를 확인하는 중…",
+  "update_latest": "최신 버전 {}을(를) 사용 중입니다",
+  "update_check_failed": "업데이트를 확인할 수 없습니다. 인터넷 연결을 확인하세요.",
+  "update_title": "새 버전 {} 이(가) 있습니다",
+  "update_msg": "지금 Lupo Player를 업데이트할까요? 재생목록과 설정은 유지됩니다.",
+  "update_btn": "업데이트",
+  "update_later": "나중에",
+  "update_downloading": "새 버전을 다운로드하는 중…",
+  "update_failed": "업데이트를 다운로드할 수 없습니다"
  },
  "zh": {
   "app_name": "Lupo Player",
@@ -2239,6 +2319,16 @@ const STRINGS = {
   "clock_left": "左上角",
   "clock_white": "白色",
   "clock_rainbow": "闪烁",
-  "clock_style": "时钟样式"
+  "clock_style": "时钟样式",
+  "st_check_update": "检查更新",
+  "update_checking": "正在检查更新…",
+  "update_latest": "已是最新版本 {}",
+  "update_check_failed": "无法检查更新。请检查网络连接。",
+  "update_title": "有新版本 {}",
+  "update_msg": "现在更新 Lupo Player 吗？播放列表和设置都会保留。",
+  "update_btn": "更新",
+  "update_later": "稍后",
+  "update_downloading": "正在下载新版本…",
+  "update_failed": "无法下载更新"
  }
 };

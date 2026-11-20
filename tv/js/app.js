@@ -100,6 +100,8 @@
     $('pick').classList.add('center');
     pick(question, [{ label: yesLabel }, { label: t('cancel') }], i => (i === 0 ? onYes() : (onNo ? onNo() : back())), () => (onNo ? onNo() : back()));
   }
+  // Удерживать «Назад» где угодно — вопрос о выходе, курсор сразу на «Выйти»
+  Nav.onLongBack(() => { if ($('pick').classList.contains('hidden') && $('input').classList.contains('hidden')) askExit(); });
   function askExit() {
     ask(t('exit_q'), t('exit_app'), () => {
       Player.stop();
@@ -235,7 +237,7 @@
   // ---------- Настройки: порядок как в Android (от главного к редкому) ----------
   const LANGS = [['en', 'English'], ['ru', 'Русский'], ['he', 'עברית'], ['fr', 'Français'], ['ar', 'العربية'],
     ['it', 'Italiano'], ['ja', '日本語'], ['ko', '한국어'], ['zh', '中文']];
-  const VERSION = '0.15';
+  const VERSION = '0.16';
   // Если телевизор даёт странице не 1920 точек в ширину, вся страница уменьшается под экран — ничего не обрезается
   (function fitScreen() {
     const k = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
@@ -287,6 +289,7 @@
       ['apppin', t('pin_button'), t(Store.appPin() ? 'pin_on' : 'pin_off'), () => appPinSettings(again('apppin'))],
       ['backup', t('set_backup'), t('st_backup_value'), () => pick(t('set_backup'), [{ label: t('backup_save') }, { label: t('backup_restore') }],
         i => (i === 0 ? saveBackup() : restoreBackup()), again('backup'))],
+      ['update', t('st_check_update'), t('settings_version', VERSION), () => checkUpdate(again('update'))],
       ['log', t('log_title'), t('st_exo_log_value', Store.log().length), () => {
         const l = Store.log();
         doc(t('log_title'), l.length ? l.join('\n\n') : t('log_empty'), again('log'));
@@ -1486,7 +1489,7 @@
       return true;
     }
     if (k === 13) { const j = split; split = -1; Player.splitStop(); playerScope(); play(j); return true; }
-    return true;
+    return ![27, 8, 10009, 461].includes(k);   // «Назад» — к обычному просмотру
   }
   function splitEnd() { split = -1; Player.splitStop(); playerScope(); play(cur); }
   Player.on('splitError', msg => { toast(t('play_error')); Store.addLog(t('split_watch') + '\n' + msg); if (split >= 0) splitEnd(); });
@@ -2149,6 +2152,53 @@
     const el = $('splash');
     el.classList.remove('hidden');
     setTimeout(() => { el.classList.add('out'); setTimeout(() => { el.classList.add('hidden'); then(); }, 350); }, 1300);
+  }
+
+  // ---------- «Проверить обновление»: новая версия из интернета скачивается и Лупо сразу перезапускается ----------
+  // (то же место и тот же вид хранения, что у запуска — js/boot.js)
+  const UPDATE_URL = 'https://raw.githubusercontent.com/Marik4elove4ek/tvplayer-apk/main/tv/';
+  function newerVer(a, b) {
+    const x = String(a || '0').split('.').map(Number), y = String(b || '0').split('.').map(Number);
+    for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d > 0; }
+    return false;
+  }
+  async function updText(url, ms) {
+    const r = await Promise.race([fetch(url, { cache: 'no-store' }), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.text();
+  }
+  async function checkUpdate(back) {
+    toast(t('update_checking'));
+    let info;
+    try { info = JSON.parse(await updText(UPDATE_URL + 'version.json?t=' + Date.now(), 8000)); } catch (e) { toast(t('update_check_failed')); back(); return; }
+    if (!info || !newerVer(info.v, VERSION)) { toast(t('update_latest', VERSION)); back(); return; }
+    $('pick').classList.add('center');
+    pick(t('update_title', info.v) + '\n' + t('update_msg'), [{ label: t('update_btn') }, { label: t('update_later') }], async i => {
+      if (i !== 0) return back();
+      toast(t('update_downloading'));
+      try {
+        const files = {};
+        for (const f of info.files) files[f] = await updText(UPDATE_URL + f + '?v=' + encodeURIComponent(info.v), 30000);
+        if (!files['js/app.js'] || !files['js/app.js'].includes("VERSION = '" + info.v + "'")) throw new Error('bad');
+        const d = await new Promise((res, rej) => {
+          const r = indexedDB.open('lupo-update', 1);
+          r.onupgradeneeded = () => r.result.createObjectStore('files');
+          r.onsuccess = () => res(r.result);
+          r.onerror = () => rej(r.error);
+        });
+        await new Promise((res, rej) => {
+          const tx = d.transaction('files', 'readwrite');
+          tx.objectStore('files').put({ v: info.v, files, bad: null, at: Date.now() }, 'current');
+          tx.oncomplete = res;
+          tx.onerror = () => rej(tx.error);
+        });
+        Player.stop();
+        location.reload();
+      } catch (e) {
+        toast(t('update_failed'));
+        back();
+      }
+    }, back);
   }
 
   // ---------- Старт: открываем там, где закрыли ----------
