@@ -240,13 +240,14 @@
     $('doc-text').scrollTop = 0;
     $('doc').classList.remove('hidden');
     Nav.setScope($('doc'), () => { $('doc').classList.add('hidden'); back(); });
-    Nav.focus($('doc-text'));
+    // Есть кнопки (журнал) — курсор сразу на них: «Очистить» и «OK» под рукой, листать текст — кнопкой «вверх»
+    Nav.focus(box.lastChild || $('doc-text'));
   }
 
   // ---------- Настройки: порядок как в Android (от главного к редкому) ----------
   const LANGS = [['en', 'English'], ['ru', 'Русский'], ['he', 'עברית'], ['fr', 'Français'], ['ar', 'العربية'],
     ['it', 'Italiano'], ['ja', '日本語'], ['ko', '한국어'], ['zh', '中文']];
-  const VERSION = '0.38';
+  const VERSION = '0.39';
   // Если телевизор даёт странице не 1920 точек в ширину, вся страница уменьшается под экран — ничего не обрезается
   (function fitScreen() {
     const k = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
@@ -1947,7 +1948,8 @@
     const my = ++startToken;
     onVariant = null;
     const skipVariant = noVariant().includes(favKey(c));
-    if (!Player.native || arch || !/m3u8/i.test(url) || (webEngine(c) && skipVariant) || seqChecked.get(c.url) === 'plain') {
+    // Станция, которая уже хорошо идёт через запасной плеер, так через него и идёт — ничего не меняем
+    if (!Player.native || arch || !/m3u8/i.test(url) || webEngine(c) || seqChecked.get(c.url) === 'plain') {
       Player.start(url, { web: webEngine(c) });
       return;
     }
