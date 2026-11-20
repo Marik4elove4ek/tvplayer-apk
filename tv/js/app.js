@@ -246,7 +246,7 @@
   // ---------- Настройки: порядок как в Android (от главного к редкому) ----------
   const LANGS = [['en', 'English'], ['ru', 'Русский'], ['he', 'עברית'], ['fr', 'Français'], ['ar', 'العربية'],
     ['it', 'Italiano'], ['ja', '日本語'], ['ko', '한국어'], ['zh', '中文']];
-  const VERSION = '0.34';
+  const VERSION = '0.35';
   // Если телевизор даёт странице не 1920 точек в ширину, вся страница уменьшается под экран — ничего не обрезается
   (function fitScreen() {
     const k = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
@@ -1882,6 +1882,9 @@
   // Если родной плеер Samsung не справляется с каналом (ошибка или второй обрыв за минуту) — канал переходит
   // на запасной движок (браузерный, hls.js), как в Android «другой движок». Выбор запоминается для канала
   let reconnects = [], stallTimer = null;
+  // Версия 0.33 отправляла все радио «только звук» в запасной плеер — часть станций перестала открываться.
+  // Правило убрано; выбор движка, запомненный той версией, сбрасывается один раз
+  try { if (localStorage.getItem('lupo.webReset') !== '35') { localStorage.removeItem('lupo.webEngine'); localStorage.setItem('lupo.webReset', '35'); } } catch (e) { }
   function webList() { try { return JSON.parse(localStorage.getItem('lupo.webEngine') || '[]'); } catch (e) { return []; } }
   function webEngine(c) { return !!c && Player.native && webList().includes(favKey(c)); }
   function setWeb(c, on) {
@@ -1911,16 +1914,11 @@
     let text = await get(url);
     if (/#EXT-X-STREAM-INF/.test(text)) {
       const lines = text.split(/\r?\n/);
-      // Радио «только звук» кусочками AAC (так вещают Like FM, Авторадио, Energy и другие станции hostingradio):
-      // родной плеер на них замирает через 10–20 секунд — сразу браузерный
-      const inf = lines.filter(l => l.startsWith('#EXT-X-STREAM-INF'));
-      if (inf.length && inf.every(l => /CODECS="[^"]*mp4a/i.test(l) && !/avc|hvc|hev|vp0?9|av01/i.test(l))) return true;
       const i = lines.findIndex(l => l.startsWith('#EXT-X-STREAM-INF'));
       const uri = lines.slice(i + 1).find(x => x && !x.startsWith('#'));
       if (!uri) return false;
       text = await get(new URL(uri.trim(), url).href);
     }
-    if (/^[^#\s][^\s]*\.(aac|mp3)(\?|$)/im.test(text)) return true;
     const m = /#EXT-X-MEDIA-SEQUENCE:\s*(\d+)/.exec(text);
     return !!m && (m[1].length > 10 || Number(m[1]) > 2147483647);
   }
