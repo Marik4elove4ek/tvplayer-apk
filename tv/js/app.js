@@ -247,7 +247,7 @@
   // ---------- Настройки: порядок как в Android (от главного к редкому) ----------
   const LANGS = [['en', 'English'], ['ru', 'Русский'], ['he', 'עברית'], ['fr', 'Français'], ['ar', 'العربية'],
     ['it', 'Italiano'], ['ja', '日本語'], ['ko', '한국어'], ['zh', '中文']];
-  const VERSION = '0.39';
+  const VERSION = '0.40';
   // Если телевизор даёт странице не 1920 точек в ширину, вся страница уменьшается под экран — ничего не обрезается
   (function fitScreen() {
     const k = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
@@ -615,7 +615,9 @@
     if (!$('bar').classList.contains('hidden') && cur >= 0) fillBar();
     if (!$('guide').classList.contains('hidden')) renderGuide();
   }
-  Epg.onChange(refreshProgs);
+  // Программа нескольких плейлистов приходит одна за другой — перерисовываем не чаще раза в 2 секунды
+  let progsTimer = null;
+  Epg.onChange(() => { if (!progsTimer) progsTimer = setTimeout(() => { progsTimer = null; refreshProgs(); }, 2000); });
   setInterval(refreshProgs, 60000);
 
   // Плейлист: сохранённые каналы сразу, свежие — в фоне
@@ -2242,7 +2244,19 @@
 
   // ---------- Список поверх видео (◀): каналы | программа выделенного канала | описание передачи ----------
   let sideGroup = ALL, sideShown = [];
+  // Папка другого плейлиста в списке слева: каналы только показываются. Идущий канал не трогаем и плейлист
+  // не меняем, пока на канале не нажали OK (как в Android)
+  let sideOther = null;   // {p, g} или null — папка своего плейлиста
+  function otherChannels(p, g) {
+    const d = Store.channels(p.id);
+    const list = noAdult(d && d.channels).map(c => Object.assign({ _pl: p.id }, c));
+    if (d) Epg.ensure(p.id, d.epg || [], d.channels);
+    if (g === ALL) return list;
+    if (g === FAV) { const f = Store.favorites(); return f.map(k => list.find(c => p.id + '|' + c.name === k)).filter(Boolean); }
+    return list.filter(c => c.group === g);
+  }
   function openSide() {
+    sideOther = null;
     sideGroup = group;
     $('side-groups').classList.add('hidden');
     $('side').classList.remove('with-groups');
@@ -2254,8 +2268,8 @@
   function renderSide(focusCurrent) {
     const box = $('side-list');
     box.innerHTML = '';
-    $('side-title').textContent = groupLabel(sideGroup);
-    sideShown = inGroup(sideGroup);
+    $('side-title').textContent = sideOther ? sideOther.p.name + ' · ' + groupLabel(sideOther.g) : groupLabel(sideGroup);
+    sideShown = sideOther ? otherChannels(sideOther.p, sideOther.g) : inGroup(sideGroup);
     sideShown.forEach((c, i) => {
       const el = channelRow(c, i);
       el.onclick = () => sidePlay(i);
@@ -2276,6 +2290,21 @@
       closeSide();
       if (list[i] === shown[cur]) { playerScope(); return; }
       splitStart(list, i);
+      return;
+    }
+    if (sideOther) {
+      // OK на канале другого плейлиста — вот теперь переходим на этот плейлист и его папку
+      const o = sideOther, c = sideShown[i];
+      sideOther = null;
+      closeSide();
+      loadPlaylist(o.p, Store.channels(o.p.id));
+      group = o.g;
+      setShown(inGroup(group));
+      prev = -1;
+      let j = shown.findIndex(x => x.name === c.name && x.url === c.url);
+      if (j < 0) { group = ALL; setShown(inGroup(ALL)); j = shown.findIndex(x => x.name === c.name && x.url === c.url); }
+      if (j < 0) return;
+      if (p) playArchive(j, p); else play(j);
       return;
     }
     closeSide();
@@ -2324,18 +2353,26 @@
   let sideExpanded = null;
   function openSideGroups(focusPid) {
     const box = $('side-groups');
-    if (focusPid === undefined) sideExpanded = pl ? pl.id : null;
+    if (focusPid === undefined) sideExpanded = sideOther ? sideOther.p.id : pl ? pl.id : null;
     groupTree(box, sideExpanded, (id, pid) => { sideExpanded = id; openSideGroups(pid); },
       (p, g) => {
-        if (!p) { sideScope(); sideGroup = GFAV; hideSideGroups(); renderSide(false); return; }
-        openLockedGroup(g, p.id, () => {
+        if (!p) { sideScope(); sideOther = null; sideGroup = GFAV; hideSideGroups(); renderSide(false); return; }
+        openLockedGroup(g, p.id, async () => {
           sideScope();
-          if (pl && p.id === pl.id) { sideGroup = g; hideSideGroups(); renderSide(false); return; }
-          closeSide();
-          openOtherPlaylist(p, g);
+          if (pl && p.id === pl.id) { sideOther = null; sideGroup = g; hideSideGroups(); renderSide(false); return; }
+          // Другой плейлист: его каналы просто показываются в списке (если ещё не скачаны — скачиваются)
+          if (!Store.channels(p.id)) {
+            toast(t('refreshing'));
+            try { Store.saveChannels(p.id, await M3U.load(p, t('no_group'), n => t('channel_n', n))); }
+            catch (e) { toast(t('load_error') + ' ' + errorText(e)); return; }
+          }
+          sideOther = { p, g };
+          hideSideGroups();
+          renderSide(false);
         }, () => { sideScope(); openSideGroups(); });
       },
-      (pid, g) => (pid === null ? sideGroup === GFAV : pl && pid === pl.id && g === sideGroup));
+      (pid, g) => (pid === null ? !sideOther && sideGroup === GFAV
+        : sideOther ? pid === sideOther.p.id && g === sideOther.g : pl && pid === pl.id && g === sideGroup));
     box.classList.remove('hidden');
     $('side').classList.add('with-groups');
     if (focusPid !== undefined) {
@@ -2356,7 +2393,7 @@
       const again = () => { sideScope(); renderSide(false); Nav.focus($('side-list').children[Math.min(i, $('side-list').children.length - 1)]); };
       return holdOk(e, () => sidePlay(i), () => {
         // В папке «Избранное» — меню (убрать, переместить, переименовать, PIN); в остальных папках канал сразу добавляется в избранное
-        if (sideGroup === FAV) chMenu(sideShown[i], again, { move: () => startMove(sideShown[i]) });
+        if (!sideOther && sideGroup === FAV) chMenu(sideShown[i], again, { move: () => startMove(sideShown[i]) });
         else { toggleFav(sideShown[i]); again(); }
       });
     }

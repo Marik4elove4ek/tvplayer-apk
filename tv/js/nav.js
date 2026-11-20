@@ -85,7 +85,6 @@ const Nav = (() => {
   });
 
   return {
-    onLongBack() { },
     setScope(el, back, key) { scope = el; onBack = back; onKey = key || null; },
     // Вернуться туда, где был пульт (после вопроса «Да/Отмена»)
     state() { const s = scope, b = onBack, k = onKey, f = document.activeElement; return () => { scope = s; onBack = b; onKey = k; focus(f); }; },

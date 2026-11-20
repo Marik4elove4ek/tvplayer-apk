@@ -156,14 +156,15 @@ const Epg = (() => {
       r.onerror = () => rej(r.error);
     });
   }
-  // В память телевизора (её всего ~80 МБ на всё) кладётся короткая программа: от «3 часа назад» до «полутора суток
-  // вперёд», описания до 200 знаков. Полная (дни архива, 4 дня вперёд) живёт только пока Лупо открыт
+  // В память телевизора (её всего ~80 МБ на всё) кладётся сжатая программа: вперёд на полтора суток с описаниями
+  // до 200 знаков, прошлые дни архива — без описаний. Полная живёт, только пока Лупо открыт
   async function saveCache(id, map) {
     try {
       const from = Date.now() - 3 * 3600e3, to = Date.now() + 36 * 3600e3;
       const data = [];
       map.forEach((list, k) => {
-        const l = list.filter(p => p.e > from && p.s < to).map(p => ({ s: p.s, e: p.e, t: p.t, d: (p.d || '').slice(0, 200) }));
+        // Прошедшие передачи (они есть только у каналов с архивом) — без описаний, только время и название
+        const l = list.filter(p => p.s < to).map(p => (p.e > from ? { s: p.s, e: p.e, t: p.t, d: (p.d || '').slice(0, 200) } : { s: p.s, e: p.e, t: p.t, d: '' }));
         if (l.length) data.push([k, l]);
       });
       const d = await db();
@@ -207,9 +208,7 @@ const Epg = (() => {
     try {
       const cached = await readCache(playlistId);
       if (cached) { maps.set(playlistId, new Map(cached.data)); listeners.forEach(f => f()); }
-      // Сохранённой хватает на 6 часов; каналам с архивом нужны прошлые дни — их программа качается при каждом запуске
-      const deep = channels.some(c => window.Catchup && Catchup.has(c));
-      if (!urls.length || (cached && !deep && Date.now() - cached.time < 6 * 3600e3)) return;
+      if (!urls.length || (cached && Date.now() - cached.time < 6 * 3600e3)) return;
       const fresh = await load(urls, channels);
       try { localStorage.setItem('epgrep.' + playlistId, JSON.stringify(lastLoad)); } catch (e) { }
       if (fresh.size) { maps.set(playlistId, fresh); saveCache(playlistId, fresh); listeners.forEach(f => f()); }
