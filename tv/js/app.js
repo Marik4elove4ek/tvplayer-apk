@@ -237,7 +237,7 @@
   // ---------- Настройки: порядок как в Android (от главного к редкому) ----------
   const LANGS = [['en', 'English'], ['ru', 'Русский'], ['he', 'עברית'], ['fr', 'Français'], ['ar', 'العربية'],
     ['it', 'Italiano'], ['ja', '日本語'], ['ko', '한국어'], ['zh', '中文']];
-  const VERSION = '0.19';
+  const VERSION = '0.20';
   // Если телевизор даёт странице не 1920 точек в ширину, вся страница уменьшается под экран — ничего не обрезается
   (function fitScreen() {
     const k = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
@@ -325,6 +325,38 @@
 
   // ---------- Резервная копия (формат как в Android: плейлисты переносятся между приставкой и телевизором) ----------
   const WEB_PREFS = ['fav', 'audio', 'subs', 'view', 'barSec', 'transp', 'buffer'];
+  // ---------- Автокопия ----------
+  // Когда Лупо ставится заново с компьютера, телевизор стирает его память (плейлисты, избранное, настройки).
+  // Поэтому после каждого изменения Лупо сам тихо кладёт копию в «Загрузки» телевизора (их переустановка не трогает),
+  // а при запуске с пустой памятью возвращает всё из неё
+  const AUTO = 'Lupo-Player-autosave.tvpb';
+  let autoTimer = null;
+  function autoKeys() {
+    const out = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if ((k.startsWith('lupo.') && !/^lupo\.(ch\.|log$|last$)/.test(k)) || k === 'size') out[k] = localStorage.getItem(k);
+    }
+    return out;
+  }
+  window.LupoAutosave = () => {
+    if (!Backup.onTv) return;
+    clearTimeout(autoTimer);
+    autoTimer = setTimeout(async () => {
+      try { Backup.save(AUTO, await Backup.pack({ app: 'lupo-auto', ls: autoKeys() })); }
+      catch (e) { Store.addLog(new Date().toLocaleString(LANG) + ' — autosave\n' + (e && (e.message || e.name) || e)); }
+    }, 4000);
+  };
+  function putAuto(d) { Object.keys(d.ls || {}).forEach(k => { try { localStorage.setItem(k, d.ls[k]); } catch (e) { } }); }
+  async function autoRestore() {
+    if (!Backup.onTv || Store.playlists().length) return false;
+    try {
+      const d = await Backup.unpack(new TextDecoder().decode(Backup.read('downloads/' + AUTO)));
+      if (!d || d.app !== 'lupo-auto') return false;
+      putAuto(d);
+      return true;
+    } catch (e) { return false; }
+  }
   async function saveBackup() {
     try {
       const web = {};
@@ -422,6 +454,8 @@
         if (pass === null) { openSettings('backup'); return; }
       }
       const data = await Backup.unpack(text, pass);
+      // Автокопия Лупо: возвращаем всё как было
+      if (data && data.app === 'lupo-auto') { putAuto(data); toast(t('backup_restored')); setTimeout(() => location.reload(), 1200); return; }
       const list = (data.playlists || []).map(o => ({ id: String(o.id || Date.now().toString(36) + Math.random().toString(36).slice(2, 5)),
         name: o.name || t('default_playlist_name'), type: o.type === 'xtream' ? 'xtream' : 'm3u',
         url: o.url || '', server: o.server || '', user: o.user || '', pass: o.pass || '', epg: o.epg || '' }));
@@ -1634,6 +1668,15 @@
   }
   Player.on('buffering', on => $('pl-spinner').classList.toggle('hidden', !on));
   Player.on('playing', () => { $('pl-spinner').classList.add('hidden'); $('guide').classList.toggle('playing', true); });
+  // Радио по названию, но в потоке есть картинка (у многих станций видеоэфир) — показываем видео, а не экран радио
+  Player.on('playing', () => {
+    const c = shown[cur];
+    [1500, 4000, 8000].forEach(ms => setTimeout(() => {
+      if (!c || shown[cur] !== c || !Radio.isOn()) return;
+      const i = Player.info();
+      if (i.w > 0 || i.h > 0) Radio.hide();
+    }, ms));
+  });
   // В потоке только звук (а по названию не понять, что радио) — тоже экран радио
   Player.on('playing', () => {
     const c = shown[cur];
@@ -2282,7 +2325,7 @@
     } catch (e) { }
   }
   // Как в Android: сразу играет последний канал; если его нет — телепрограмма; нет плейлистов — экран плейлистов
-  Promise.all([devPlaylists(), new Promise(r => splash(r))]).then(() => new Promise(r => askAppPin(r))).then(() => {
+  Promise.all([autoRestore().then(devPlaylists), new Promise(r => splash(r))]).then(() => new Promise(r => askAppPin(r))).then(() => {
     $('pin-cover').classList.add('hidden');
     const on = Store.playlists().filter(p => !p.off);
     const last = Store.last();

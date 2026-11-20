@@ -6,6 +6,8 @@ const Store = (() => {
   }
   function set(k, v) {
     try { localStorage.setItem(K + k, JSON.stringify(v)); } catch (e) { }
+    // Плейлисты, избранное, настройки изменились — автокопия в памяти телевизора (см. app.js)
+    if (!/^(ch\.|log$|last$)/.test(k) && window.LupoAutosave) window.LupoAutosave();
   }
   return {
     playlists: () => get('playlists', []),
