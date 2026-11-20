@@ -237,7 +237,7 @@
   // ---------- Настройки: порядок как в Android (от главного к редкому) ----------
   const LANGS = [['en', 'English'], ['ru', 'Русский'], ['he', 'עברית'], ['fr', 'Français'], ['ar', 'العربية'],
     ['it', 'Italiano'], ['ja', '日本語'], ['ko', '한국어'], ['zh', '中文']];
-  const VERSION = '0.17';
+  const VERSION = '0.18';
   // Если телевизор даёт странице не 1920 точек в ширину, вся страница уменьшается под экран — ничего не обрезается
   (function fitScreen() {
     const k = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
@@ -1583,10 +1583,27 @@
       play(cur, { p, from: target });
     }, 700);
   }
-  // Поток кончился: архив — продолжаем с того же места или возвращаемся в эфир; эфир — ошибка
+  // Эфир оборвался или долго «думает» — переподключаемся сами, как в Android (так бывает у радио HLS:
+  // родной плеер Samsung считает живой поток законченным). Ошибка — только если три переподключения за минуту не помогли
+  let reconnects = [], stallTimer = null;
+  function reconnect(why) {
+    const c = shown[cur];
+    if (!c || vod || split >= 0) return;
+    const now = Date.now();
+    reconnects = reconnects.filter(x => now - x < 60000);
+    if (reconnects.length >= 3) { reconnects = []; return playError(why + ' (3×)'); }
+    reconnects.push(now);
+    Player.start(streamUrl(c));
+  }
+  Player.on('buffering', on => {
+    clearTimeout(stallTimer);
+    if (on && !vod) stallTimer = setTimeout(() => { if (screen === 'player' && cur >= 0 && !arch) reconnect('buffering 15 s'); }, 15000);
+  });
+  Player.on('playing', () => clearTimeout(stallTimer));
+  // Поток кончился: архив — продолжаем с того же места или возвращаемся в эфир; эфир — переподключение
   Player.on('ended', () => {
     if (vod || screen !== 'player' || cur < 0) return;
-    if (!arch) return playError('stream ended');
+    if (!arch) return reconnect('stream ended');
     const at = archPos();
     if (at < arch.p.e - 60000 && at < Date.now() - 60000) play(cur, { p: arch.p, from: at });
     else play(cur);
@@ -2206,7 +2223,11 @@
   async function checkUpdate(back) {
     toast(t('update_checking'));
     let info;
-    try { info = JSON.parse(await updText(UPDATE_URL + 'version.json?t=' + Date.now(), 8000)); } catch (e) { toast(t('update_check_failed')); back(); return; }
+    try { info = JSON.parse(await updText(UPDATE_URL + 'version.json?t=' + Date.now(), 10000)); } catch (e) {
+      toast(t('update_check_failed'));
+      Store.addLog(new Date().toLocaleString(LANG) + ' — update check\n' + (e && (e.message || e.name) || e));
+      back(); return;
+    }
     if (!info || !newerVer(info.v, VERSION)) { toast(t('update_latest', VERSION)); back(); return; }
     $('pick').classList.add('center');
     pick(t('update_title', info.v) + '\n' + t('update_msg'), [{ label: t('update_btn') }, { label: t('update_later') }], async i => {
@@ -2214,8 +2235,8 @@
       toast(t('update_downloading'));
       try {
         const files = {};
-        for (const f of info.files) files[f] = await updText(UPDATE_URL + f + '?v=' + encodeURIComponent(info.v), 30000);
-        if (!files['js/app.js'] || !files['js/app.js'].includes("VERSION = '" + info.v + "'")) throw new Error('bad');
+        for (const f of info.files) files[f] = await updText(UPDATE_URL + (info.base || '') + f, 30000);
+        if (!files['js/app.js'] || !files['js/app.js'].includes("VERSION = '" + info.v + "'")) throw new Error('files of another version');
         const d = await new Promise((res, rej) => {
           const r = indexedDB.open('lupo-update', 1);
           r.onupgradeneeded = () => r.result.createObjectStore('files');
@@ -2232,6 +2253,7 @@
         location.reload();
       } catch (e) {
         toast(t('update_failed'));
+        Store.addLog(new Date().toLocaleString(LANG) + ' — update ' + info.v + '\n' + (e && (e.message || e.name) || e));
         back();
       }
     }, back);
