@@ -40,11 +40,15 @@ const Player = (() => {
     document.documentElement.classList.remove('av-on');
   }
 
-  function start(url) {
+  // web — играть через браузер (hls.js / mpegts.js) даже на Samsung: запасной движок для потоков,
+  // с которыми родной плеер не справляется (часть радио HLS обрывается через 10–20 секунд)
+  let engineWeb = false;
+  function start(url, opts) {
     stop();
     const my = ++token;
     paused = false;
-    if (av) return startAv(url, my);
+    engineWeb = !!(opts && opts.web) || !av;
+    if (av && !engineWeb) return startAv(url, my);
     const isHls = /m3u8/i.test(url);
     const isTs = !isHls && (/\.ts(\?|$)/i.test(url) || /\/live\/[^/]+\/[^/]+\/\d+(\?|$)/i.test(url));
     const sec = BUF[buffer];
@@ -71,7 +75,7 @@ const Player = (() => {
     playing = true;
     video.play().catch(() => { });
   }
-  video.addEventListener('error', () => { if (!av && !hls && !ts && video.error) emit('error', 'video: ' + (video.error.message || video.error.code)); });
+  video.addEventListener('error', () => { if ((!av || engineWeb) && !hls && !ts && video.error) emit('error', 'video: ' + (video.error.message || video.error.code)); });
   video.addEventListener('loadedmetadata', () => { if (!hls) emit('tracks'); });
   video.addEventListener('playing', () => emit('playing'));
   video.addEventListener('ended', () => emit('ended'));
@@ -120,26 +124,26 @@ const Player = (() => {
 
   // ---------- Дорожки: { lang, name, on } ----------
   function audioTracks() {
-    if (av) { const cur = avCurrent('AUDIO'); return avList('AUDIO').map(x => Object.assign(avInfo(x), { on: x.index === cur })); }
+    if (av && !engineWeb) { const cur = avCurrent('AUDIO'); return avList('AUDIO').map(x => Object.assign(avInfo(x), { on: x.index === cur })); }
     if (hls) return hls.audioTracks.map((a, i) => ({ lang: a.lang, name: a.name, on: i === hls.audioTrack }));
     const at = video.audioTracks;
     if (!at) return [];
     return [...Array(at.length).keys()].map(i => ({ lang: at[i].language, name: at[i].label, on: at[i].enabled }));
   }
   function setAudio(i) {
-    if (av) { const x = avList('AUDIO')[i]; if (x) try { av.setSelectTrack('AUDIO', x.index); } catch (e) { emit('error', 'AVPlay audio: ' + (e.message || e)); } return; }
+    if (av && !engineWeb) { const x = avList('AUDIO')[i]; if (x) try { av.setSelectTrack('AUDIO', x.index); } catch (e) { emit('error', 'AVPlay audio: ' + (e.message || e)); } return; }
     if (hls) { hls.audioTrack = i; return; }
     const at = video.audioTracks;
     if (at) for (let j = 0; j < at.length; j++) at[j].enabled = j === i;
   }
   function textTracks() { return [...(video.textTracks || [])].filter(x => x.kind === 'subtitles' || x.kind === 'captions'); }
   function subTracks() {
-    if (av) return avList('TEXT').map(x => Object.assign(avInfo(x), { on: x.index === avSub }));
+    if (av && !engineWeb) return avList('TEXT').map(x => Object.assign(avInfo(x), { on: x.index === avSub }));
     if (hls) return hls.subtitleTracks.map((s, i) => ({ lang: s.lang, name: s.name, on: i === hls.subtitleTrack }));
     return textTracks().map(x => ({ lang: x.language, name: x.label, on: x.mode === 'showing' }));
   }
   function setSub(i) {   // −1 — выключить
-    if (av) {
+    if (av && !engineWeb) {
       const x = avList('TEXT')[i];
       avSub = x ? x.index : -1;
       try { if (x) { av.setSelectTrack('TEXT', x.index); av.setSilentSubtitle(false); } else av.setSilentSubtitle(true); } catch (e) { }
@@ -154,7 +158,7 @@ const Player = (() => {
   function info() {
     const r = { w: 0, h: 0, kbps: 0, ch: 0 };
     try {
-      if (av) {
+      if (av && !engineWeb) {
         av.getCurrentStreamInfo().forEach(x => {
           let o = {};
           try { o = JSON.parse(x.extra_info); } catch (e) {
@@ -207,14 +211,14 @@ const Player = (() => {
   let paused = false;
   function pause(on) {
     paused = on === undefined ? !paused : on;
-    try { if (av) { paused ? av.pause() : av.play(); } else { paused ? video.pause() : video.play().catch(() => { }); } } catch (e) { }
+    try { if (av && !engineWeb) { paused ? av.pause() : av.play(); } else { paused ? video.pause() : video.play().catch(() => { }); } } catch (e) { }
     return paused;
   }
   // Сколько миллисекунд показано от начала потока; длина потока (фильм) — 0, если неизвестна
-  function pos() { try { return av ? av.getCurrentTime() : Math.round(video.currentTime * 1000); } catch (e) { return 0; } }
-  function duration() { try { return av ? av.getDuration() : (isFinite(video.duration) ? Math.round(video.duration * 1000) : 0); } catch (e) { return 0; } }
+  function pos() { try { return av && !engineWeb ? av.getCurrentTime() : Math.round(video.currentTime * 1000); } catch (e) { return 0; } }
+  function duration() { try { return av && !engineWeb ? av.getDuration() : (isFinite(video.duration) ? Math.round(video.duration * 1000) : 0); } catch (e) { return 0; } }
   function seekTo(ms) {
-    try { if (av) av.seekTo(Math.max(0, ms)); else video.currentTime = Math.max(0, ms / 1000); } catch (e) { }
+    try { if (av && !engineWeb) av.seekTo(Math.max(0, ms)); else video.currentTime = Math.max(0, ms / 1000); } catch (e) { }
   }
   // Размер картинки: по размеру, растянуть, увеличить (края обрезаны)
   let size = 'fit';
@@ -262,5 +266,5 @@ const Player = (() => {
     }
   }
 
-  return { pause, pos, duration, seekTo, setSize, isPaused: () => paused, split, splitStop, canSplit: !!(av && store), setLeveler, info, start, stop, on, audioTracks, setAudio, subTracks, setSub, setBuffer, setRect, isPlaying: () => playing, native: !!av };
+  return { usingWeb: () => engineWeb, pause, pos, duration, seekTo, setSize, isPaused: () => paused, split, splitStop, canSplit: !!(av && store), setLeveler, info, start, stop, on, audioTracks, setAudio, subTracks, setSub, setBuffer, setRect, isPlaying: () => playing, native: !!av };
 })();

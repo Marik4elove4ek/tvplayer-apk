@@ -225,7 +225,18 @@
   }
 
   // Длинный текст (политика, условия, лицензии, журнал): ▲▼ — листать, «Назад» — закрыть
-  function doc(title, text, back) {
+  // buttons — кнопки под текстом: [[название, действие], …] (например, в журнале: «Очистить» и «OK»)
+  function doc(title, text, back, buttons) {
+    const box = $('doc-btns');
+    box.innerHTML = '';
+    (buttons || []).forEach(([label, act], i) => {
+      const b = document.createElement('button');
+      b.className = 'btn' + (i === buttons.length - 1 ? ' primary' : '');
+      b.textContent = label;
+      b.onclick = () => { $('doc').classList.add('hidden'); act(); };
+      box.appendChild(b);
+    });
+    box.classList.toggle('hidden', !box.children.length);
     $('doc-title').textContent = title;
     $('doc-text').textContent = text;
     $('doc-text').scrollTop = 0;
@@ -237,7 +248,7 @@
   // ---------- Настройки: порядок как в Android (от главного к редкому) ----------
   const LANGS = [['en', 'English'], ['ru', 'Русский'], ['he', 'עברית'], ['fr', 'Français'], ['ar', 'العربية'],
     ['it', 'Italiano'], ['ja', '日本語'], ['ko', '한국어'], ['zh', '中文']];
-  const VERSION = '0.20';
+  const VERSION = '0.21';
   // Если телевизор даёт странице не 1920 точек в ширину, вся страница уменьшается под экран — ничего не обрезается
   (function fitScreen() {
     const k = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
@@ -292,7 +303,8 @@
       ['update', t('st_check_update'), t('settings_version', VERSION), () => checkUpdate(again('update'))],
       ['log', t('log_title'), t('st_exo_log_value', Store.log().length), () => {
         const l = Store.log();
-        doc(t('log_title'), l.length ? l.join('\n\n') : t('log_empty'), again('log'));
+        doc(t('log_title'), l.length ? l.join('\n\n') : t('log_empty'), again('log'),
+          [[t('exo_log_clear'), () => { Store.clearLog(); toast(t('log_empty')); openSettings('log'); }], [t('ok'), again('log')]]);
       }],
       ['privacy', t('legal_privacy'), t('legal_open'), () => doc(t('legal_privacy'), t('legal_privacy_text') + '\n\n' + t('legal_privacy_extra'), again('privacy'))],
       ['terms', t('legal_terms'), t('legal_open'), () => doc(t('legal_terms'), t('legal_terms_text') + '\n\n' + t('legal_terms_extra'), again('terms'))],
@@ -796,9 +808,9 @@
     playingCh = c;
     arch = null;
     if (Radio.looks(c)) { Radio.show(c, dispName(c)); Radio.visible(false); } else Radio.hide();
-    Player.start(c.url);
+    Player.start(c.url, { web: webEngine(c) });
     clearTimeout(retryTimer);
-    retryTimer = setTimeout(() => { if (shown[cur] === c && !Player.isPlaying()) Player.start(c.url); }, 7000);
+    retryTimer = setTimeout(() => { if (shown[cur] === c && !Player.isPlaying()) Player.start(c.url, { web: webEngine(c) }); }, 7000);
     Store.saveLast({ pl: pl.id, group, name: c.name });
   }
   function playFromGuide(i) {
@@ -1628,15 +1640,33 @@
   }
   // Эфир оборвался или долго «думает» — переподключаемся сами, как в Android (так бывает у радио HLS:
   // родной плеер Samsung считает живой поток законченным). Ошибка — только если три переподключения за минуту не помогли
+  // Если родной плеер Samsung не справляется с каналом (ошибка или второй обрыв за минуту) — канал переходит
+  // на запасной движок (браузерный, hls.js), как в Android «другой движок». Выбор запоминается для канала
   let reconnects = [], stallTimer = null;
+  function webList() { try { return JSON.parse(localStorage.getItem('lupo.webEngine') || '[]'); } catch (e) { return []; } }
+  function webEngine(c) { return !!c && Player.native && webList().includes(favKey(c)); }
+  function setWeb(c, on) {
+    const l = webList().filter(k => k !== favKey(c));
+    if (on) l.push(favKey(c));
+    try { localStorage.setItem('lupo.webEngine', JSON.stringify(l.slice(-300))); } catch (e) { }
+  }
+  function toWebEngine(c, why) {
+    if (!Player.native || webEngine(c) || arch) return false;
+    setWeb(c, true);
+    reconnects = [];
+    Store.addLog(new Date().toLocaleString(LANG) + ' — ' + c.name + '\n' + why + ' → hls.js');
+    Player.start(streamUrl(c), { web: true });
+    return true;
+  }
   function reconnect(why) {
     const c = shown[cur];
     if (!c || vod || split >= 0) return;
     const now = Date.now();
     reconnects = reconnects.filter(x => now - x < 60000);
+    if (reconnects.length >= 1 && toWebEngine(c, why)) return;
     if (reconnects.length >= 3) { reconnects = []; return playError(why + ' (3×)'); }
     reconnects.push(now);
-    Player.start(streamUrl(c));
+    Player.start(streamUrl(c), { web: webEngine(c) });
   }
   Player.on('buffering', on => {
     clearTimeout(stallTimer);
@@ -1662,6 +1692,9 @@
     }
     if (screen !== 'player' || cur < 0) return;
     const c = shown[cur];
+    // Родной плеер не открыл канал — пробуем запасной движок; запасной тоже не смог — забываем его для канала
+    if (c && split < 0 && toWebEngine(c, msg)) return;
+    if (c && webEngine(c) && Player.usingWeb()) setWeb(c, false);
     toast(t('play_error'));
     const d = new Date();
     Store.addLog(d.toLocaleDateString(LANG) + ' ' + hm(d) + ' — ' + (c ? c.name : '') + '\n' + msg + (c ? '\n' + c.url : ''));
@@ -1708,12 +1741,12 @@
     playerScope();
     $('pl-spinner').classList.remove('hidden');
     const url = streamUrl(c);
-    Player.start(url);
+    Player.start(url, { web: webEngine(c) });
     if (Radio.looks(c)) Radio.show(c, dispName(c)); else Radio.hide();
     // Канал не пошёл за 7 с (бывает при запуске программы) — включаем его ещё раз сами
     clearTimeout(retryTimer);
     const my = c;
-    retryTimer = setTimeout(() => { if (shown[cur] === my && !Player.isPlaying()) Player.start(url); }, 7000);
+    retryTimer = setTimeout(() => { if (shown[cur] === my && !Player.isPlaying()) Player.start(url, { web: webEngine(my) }); }, 7000);
     Store.saveLast({ pl: pl.id, group, name: c.name });
     showBar();
   }

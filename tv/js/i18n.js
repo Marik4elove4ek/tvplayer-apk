@@ -257,7 +257,8 @@ const STRINGS = {
   "update_btn": "Обновить",
   "update_later": "Позже",
   "update_downloading": "Загрузка новой версии…",
-  "update_failed": "Не удалось скачать обновление"
+  "update_failed": "Не удалось скачать обновление",
+  "ok": "OK"
  },
  "en": {
   "app_name": "Lupo Player",
@@ -516,7 +517,8 @@ const STRINGS = {
   "update_btn": "Update",
   "update_later": "Later",
   "update_downloading": "Downloading new version…",
-  "update_failed": "Could not download the update"
+  "update_failed": "Could not download the update",
+  "ok": "OK"
  },
  "he": {
   "app_name": "Lupo Player",
@@ -775,7 +777,8 @@ const STRINGS = {
   "update_btn": "עדכון",
   "update_later": "אחר כך",
   "update_downloading": "מוריד גרסה חדשה…",
-  "update_failed": "לא ניתן להוריד את העדכון"
+  "update_failed": "לא ניתן להוריד את העדכון",
+  "ok": "אישור"
  },
  "ar": {
   "app_name": "Lupo Player",
@@ -1034,7 +1037,8 @@ const STRINGS = {
   "update_btn": "تحديث",
   "update_later": "لاحقًا",
   "update_downloading": "جارٍ تنزيل الإصدار الجديد…",
-  "update_failed": "تعذر تنزيل التحديث"
+  "update_failed": "تعذر تنزيل التحديث",
+  "ok": "موافق"
  },
  "fr": {
   "app_name": "Lupo Player",
@@ -1293,7 +1297,8 @@ const STRINGS = {
   "update_btn": "Mettre à jour",
   "update_later": "Plus tard",
   "update_downloading": "Téléchargement de la nouvelle version…",
-  "update_failed": "Échec du téléchargement de la mise à jour"
+  "update_failed": "Échec du téléchargement de la mise à jour",
+  "ok": "OK"
  },
  "it": {
   "app_name": "Lupo Player",
@@ -1552,7 +1557,8 @@ const STRINGS = {
   "update_btn": "Aggiorna",
   "update_later": "Più tardi",
   "update_downloading": "Download della nuova versione…",
-  "update_failed": "Impossibile scaricare l’aggiornamento"
+  "update_failed": "Impossibile scaricare l’aggiornamento",
+  "ok": "OK"
  },
  "ja": {
   "app_name": "Lupo Player",
@@ -1811,7 +1817,8 @@ const STRINGS = {
   "update_btn": "更新",
   "update_later": "あとで",
   "update_downloading": "新しいバージョンをダウンロード中…",
-  "update_failed": "更新をダウンロードできませんでした"
+  "update_failed": "更新をダウンロードできませんでした",
+  "ok": "OK"
  },
  "ko": {
   "app_name": "Lupo Player",
@@ -2070,7 +2077,8 @@ const STRINGS = {
   "update_btn": "업데이트",
   "update_later": "나중에",
   "update_downloading": "새 버전을 다운로드하는 중…",
-  "update_failed": "업데이트를 다운로드할 수 없습니다"
+  "update_failed": "업데이트를 다운로드할 수 없습니다",
+  "ok": "확인"
  },
  "zh": {
   "app_name": "Lupo Player",
@@ -2329,6 +2337,7 @@ const STRINGS = {
   "update_btn": "更新",
   "update_later": "稍后",
   "update_downloading": "正在下载新版本…",
-  "update_failed": "无法下载更新"
+  "update_failed": "无法下载更新",
+  "ok": "确定"
  }
 };

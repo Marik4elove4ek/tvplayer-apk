@@ -388,3 +388,4 @@ html.av-on .screen:not(#scr-player) { background: var(--bg) !important; }
   -webkit-background-clip: text; background-clip: text; color: transparent; animation: rainbow 6s linear infinite; text-shadow: none; }
 @keyframes rainbow { from { background-position: 0 0; } to { background-position: 300% 0; } }
 #pick-title, .sched-title { white-space: pre-line; }
+.doc-btns { justify-content: flex-end; margin-top: 18px; }
