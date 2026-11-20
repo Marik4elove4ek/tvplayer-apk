@@ -246,7 +246,7 @@
   // ---------- Настройки: порядок как в Android (от главного к редкому) ----------
   const LANGS = [['en', 'English'], ['ru', 'Русский'], ['he', 'עברית'], ['fr', 'Français'], ['ar', 'العربية'],
     ['it', 'Italiano'], ['ja', '日本語'], ['ko', '한국어'], ['zh', '中文']];
-  const VERSION = '0.37';
+  const VERSION = '0.38';
   // Если телевизор даёт странице не 1920 точек в ширину, вся страница уменьшается под экран — ничего не обрезается
   (function fitScreen() {
     const k = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
@@ -1894,6 +1894,14 @@
   }
   const webFailed = new Set();   // каналы, которые запасной плеер не открыл (до выхода из программы к нему не возвращаемся)
   function toWebEngine(c, why) {
+    // Станция шла одним потоком и всё равно замерла — этот способ для неё больше не пробуем
+    if (onVariant === c) {
+      onVariant = null;
+      const l = noVariant().filter(k => k !== favKey(c)); l.push(favKey(c));
+      try { localStorage.setItem('lupo.noVariant', JSON.stringify(l.slice(-300))); } catch (e) { }
+      Store.addLog(new Date().toLocaleString(LANG) + ' — ' + c.name + '\n' + why + ' (one variant)');
+      if (webEngine(c)) { reconnects = []; Player.start(streamUrl(c), { web: true }); return true; }
+    }
     if (!Player.native || webEngine(c) || arch || webFailed.has(favKey(c))) return false;
     setWeb(c, true);
     reconnects = [];
@@ -1905,37 +1913,56 @@
   // радио и каналов номер больше (время в микросекундах) — плеер играет один кусочек и останавливается.
   // Перед первым включением такого канала смотрим его список и сразу включаем браузерный плеер (hls.js),
   // не дожидаясь, пока родной споткнётся
-  const seqChecked = new Map();   // адрес канала → true (номер слишком большой) / false
-  async function bigSequence(url) {
+  const seqChecked = new Map();   // адрес канала → true (номер кусочка слишком большой) / false
+  // Что за поток HLS: big — номер кусочка не помещается в 32 бита; audio — адрес одного качества у радио
+  // «только звук» с несколькими качествами. Родной плеер Samsung, переключаясь между качествами звука, замирает
+  // (известная ошибка), поэтому таким станциям даём один поток — самый качественный — и переключаться ему не между чем
+  async function hlsKind(url) {
     const get = async u => {
       const r = await Promise.race([fetch(u, { cache: 'no-store' }), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 3000))]);
       if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.text();
+      return { text: await r.text(), url: r.url || u };
     };
-    let text = await get(url);
-    if (/#EXT-X-STREAM-INF/.test(text)) {
-      const lines = text.split(/\r?\n/);
-      const i = lines.findIndex(l => l.startsWith('#EXT-X-STREAM-INF'));
-      const uri = lines.slice(i + 1).find(x => x && !x.startsWith('#'));
-      if (!uri) return false;
-      text = await get(new URL(uri.trim(), url).href);
+    let r = await get(url), audio = null;
+    if (/#EXT-X-STREAM-INF/.test(r.text)) {
+      const lines = r.text.split(/\r?\n/), vars = [];
+      lines.forEach((l, i) => {
+        if (!l.startsWith('#EXT-X-STREAM-INF')) return;
+        const uri = lines.slice(i + 1).find(x => x && !x.startsWith('#'));
+        if (uri) vars.push({ bw: +((/[^-]BANDWIDTH=(\d+)/.exec(l) || [])[1] || 0), audio: /CODECS="[^"]*mp4a/i.test(l) && !/avc|hvc|hev|vp0?9|av01/i.test(l) && !/RESOLUTION=/i.test(l), uri: uri.trim() });
+      });
+      if (!vars.length) return { big: false, audio: null };
+      const best = vars.slice().sort((x, y) => y.bw - x.bw)[0];
+      const vurl = new URL(best.uri, r.url).href;
+      if (vars.every(v => v.audio)) audio = vurl;
+      r = await get(vurl);
     }
-    const m = /#EXT-X-MEDIA-SEQUENCE:\s*(\d+)/.exec(text);
-    return !!m && (m[1].length > 10 || Number(m[1]) > 2147483647);
+    const m = /#EXT-X-MEDIA-SEQUENCE:\s*(\d+)/.exec(r.text);
+    return { big: !!m && (m[1].length > 10 || Number(m[1]) > 2147483647), audio };
   }
-  let startToken = 0;
+  // Станции, которым один поток не помог (всё равно замерли), — им остаётся запасной плеер
+  function noVariant() { try { return JSON.parse(localStorage.getItem('lupo.noVariant') || '[]'); } catch (e) { return []; } }
+  let startToken = 0, onVariant = null;
   function startChannel(c, url) {
     const my = ++startToken;
-    if (!Player.native || webEngine(c) || arch || !/m3u8/i.test(url) || seqChecked.has(c.url)) {
+    onVariant = null;
+    const skipVariant = noVariant().includes(favKey(c));
+    if (!Player.native || arch || !/m3u8/i.test(url) || (webEngine(c) && skipVariant) || seqChecked.get(c.url) === 'plain') {
       Player.start(url, { web: webEngine(c) });
       return;
     }
-    bigSequence(url).catch(() => false).then(big => {
-      seqChecked.set(c.url, big);
+    hlsKind(url).catch(() => ({ big: false, audio: null })).then(k => {
       if (my !== startToken) return;
-      if (big) {
+      if (k.audio && !skipVariant) {
+        // Радио: один поток в родном плеере
+        onVariant = c;
+        Player.start(k.audio);
+        return;
+      }
+      if (!k.audio && !k.big) seqChecked.set(c.url, 'plain');   // обычный канал — больше не проверяем
+      if (k.big && !webEngine(c)) {
         setWeb(c, true);
-        Store.addLog(new Date().toLocaleString(LANG) + ' — ' + c.name + '\nHLS audio / media sequence → hls.js');
+        Store.addLog(new Date().toLocaleString(LANG) + ' — ' + c.name + '\nmedia sequence → hls.js');
       }
       Player.start(url, { web: webEngine(c) });
     });
