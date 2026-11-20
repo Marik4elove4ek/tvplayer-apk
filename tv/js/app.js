@@ -246,7 +246,7 @@
   // ---------- Настройки: порядок как в Android (от главного к редкому) ----------
   const LANGS = [['en', 'English'], ['ru', 'Русский'], ['he', 'עברית'], ['fr', 'Français'], ['ar', 'العربية'],
     ['it', 'Italiano'], ['ja', '日本語'], ['ko', '한국어'], ['zh', '中文']];
-  const VERSION = '0.23';
+  const VERSION = '0.24';
   // Если телевизор даёт странице не 1920 точек в ширину, вся страница уменьшается под экран — ничего не обрезается
   (function fitScreen() {
     const k = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
@@ -1793,12 +1793,66 @@
   }
 
   // «Пузыри» на плашке, как в Android: качество кадра, скорость потока, звук (стерео / 5.1)
+  // Настоящая скорость потока канала. Плеер Samsung вместо неё отдаёт число вроде «100 Мбит/с» (предел, а не поток),
+  // поэтому узнаём сами: в списке HLS у каждого качества записана его скорость (BANDWIDTH) и размер кадра;
+  // если списка качеств нет — скачиваем последний кусочек эфира и делим его размер на длительность
+  const rates = new Map();   // адрес канала → {kbps, h} или null (узнать нельзя)
+  async function measureStream(url) {
+    const get = async (u, bin) => {
+      const r = await Promise.race([fetch(u, { cache: 'no-store' }), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 10000))]);
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return bin ? r.arrayBuffer() : r.text();
+    };
+    if (!/m3u8/i.test(url)) return null;
+    let text = await get(url);
+    let base = url;
+    if (/#EXT-X-STREAM-INF/.test(text)) {
+      const lines = text.split(/\r?\n/), vars = [];
+      lines.forEach((l, i) => {
+        if (!l.startsWith('#EXT-X-STREAM-INF')) return;
+        const bw = +((/AVERAGE-BANDWIDTH=(\d+)/.exec(l) || [])[1] || (/[^-]BANDWIDTH=(\d+)/.exec(l) || [])[1] || 0);
+        const h = +((/RESOLUTION=\d+x(\d+)/.exec(l) || [])[1] || 0);
+        const uri = lines.slice(i + 1).find(x => x && !x.startsWith('#'));
+        vars.push({ bw, h, uri });
+      });
+      if (!vars.length) return null;
+      const ph = Player.info().h;
+      // То качество, которое сейчас показывает плеер (по размеру кадра), иначе самое высокое
+      const v = (ph && vars.find(x => x.h === ph)) || vars.slice().sort((a, b) => b.bw - a.bw)[0];
+      if (v.bw) return { kbps: Math.round(v.bw / 1000), h: v.h };
+      text = await get(new URL(v.uri, url).href);
+      base = new URL(v.uri, url).href;
+    }
+    // Список кусочков: последний кусочек — размер в битах / длительность
+    const lines = text.split(/\r?\n/);
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const m = /^#EXTINF:([\d.]+)/.exec(lines[i]);
+      if (!m) continue;
+      const uri = lines.slice(i + 1).find(x => x && !x.startsWith('#'));
+      const dur = parseFloat(m[1]);
+      if (!uri || !(dur > 0)) return null;
+      const size = (await get(new URL(uri, base).href, true)).byteLength;
+      return { kbps: Math.round(size * 8 / dur / 1000), h: 0 };
+    }
+    return null;
+  }
+  function streamRate(c) {
+    if (!c) return null;
+    if (!rates.has(c.url)) {
+      rates.set(c.url, null);
+      measureStream(c.url).then(r => { rates.set(c.url, r); if (!$('bar').classList.contains('hidden')) bubbles(); }).catch(() => { });
+    }
+    return rates.get(c.url);
+  }
   function bubbles() {
     const box = $('bar-bubbles');
     const i = Player.info();
+    const r = vod ? null : streamRate(shown[cur]);
+    const h = (r && r.h) || i.h;
+    const kbps = r ? r.kbps : (Player.native && !Player.usingWeb() ? 0 : i.kbps);
     const out = [];
-    if (i.h) out.push(i.h >= 2000 ? '4K' : i.h >= 1400 ? '1440p' : i.h >= 1000 ? '1080p' : i.h >= 700 ? '720p' : i.h + 'p');
-    if (i.kbps) out.push(i.kbps >= 1000 ? t('bitrate_mbps', (i.kbps / 1000).toFixed(1)) : t('bitrate_kbps', i.kbps));
+    if (h) out.push(h >= 2000 ? '4K' : h >= 1400 ? '1440p' : h >= 1000 ? '1080p' : h >= 700 ? '720p' : h + 'p');
+    if (kbps) out.push(kbps >= 1000 ? t('bitrate_mbps', (kbps / 1000).toFixed(1)) : t('bitrate_kbps', kbps));
     if (i.ch) out.push(i.ch === 1 ? t('sound_mono') : i.ch === 2 ? t('sound_stereo') : i.ch === 6 ? '5.1' : i.ch === 8 ? '7.1' : t('sound_channels', i.ch));
     box.innerHTML = '';
     out.forEach(x => { const b = document.createElement('span'); b.textContent = x; box.appendChild(b); });
