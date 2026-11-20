@@ -246,7 +246,7 @@
   // ---------- Настройки: порядок как в Android (от главного к редкому) ----------
   const LANGS = [['en', 'English'], ['ru', 'Русский'], ['he', 'עברית'], ['fr', 'Français'], ['ar', 'العربية'],
     ['it', 'Italiano'], ['ja', '日本語'], ['ko', '한국어'], ['zh', '中文']];
-  const VERSION = '0.31';
+  const VERSION = '0.32';
   // Если телевизор даёт странице не 1920 точек в ширину, вся страница уменьшается под экран — ничего не обрезается
   (function fitScreen() {
     const k = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
