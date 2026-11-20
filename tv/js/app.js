@@ -246,7 +246,7 @@
   // ---------- Настройки: порядок как в Android (от главного к редкому) ----------
   const LANGS = [['en', 'English'], ['ru', 'Русский'], ['he', 'עברית'], ['fr', 'Français'], ['ar', 'العربية'],
     ['it', 'Italiano'], ['ja', '日本語'], ['ko', '한국어'], ['zh', '中文']];
-  const VERSION = '0.30';
+  const VERSION = '0.31';
   // Если телевизор даёт странице не 1920 точек в ширину, вся страница уменьшается под экран — ничего не обрезается
   (function fitScreen() {
     const k = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
@@ -301,6 +301,7 @@
       ['update', t('st_check_update'), t('settings_version', VERSION), () => checkUpdate(again('update'))],
       ['log', t('log_title'), t('st_exo_log_value', Store.log().length), () => {
         const l = Store.log();
+        try { navigator.storage.estimate().then(u => { $('doc-title').textContent = t('log_title') + '   ·   ' + Math.round(u.usage / 1e6) + ' / ' + Math.round(u.quota / 1e6) + ' MB'; }); } catch (e) { }
         doc(t('log_title'), l.length ? l.join('\n\n') : t('log_empty'), again('log'),
           [[t('exo_log_clear'), () => { Store.clearLog(); toast(t('log_empty')); openSettings('log'); }], [t('ok'), again('log')]]);
       }],
