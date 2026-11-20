@@ -393,3 +393,10 @@ html.av-on .screen:not(#scr-player) { background: var(--bg) !important; }
 .grp.pl-head { color: var(--accent); font-weight: 700; }
 .grp.sub { padding-left: 44px !important; }
 html.av-on.split-web #video { display: block !important; background: #000; }
+/* Серверы провайдера: название плейлиста со страной, владелец и адрес, скорость, пинг, джиттер */
+.sp-row { grid-template-columns: minmax(0, 1fr) 190px 170px 190px !important; align-items: center; outline: none; border: 2px solid transparent; }
+.sp-row:focus { border-color: var(--accent); }
+.sp-row .n { font-size: 22px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sp-row > div:first-child .h { font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sp-row .v { font-size: 24px; font-weight: 800; }
+.sp-servers { max-height: 330px !important; overflow-y: auto !important; scrollbar-width: none; }

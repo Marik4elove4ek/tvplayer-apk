@@ -261,7 +261,10 @@ const STRINGS = {
   "ok": "OK",
   "split_pick": "Выберите второй канал — он откроется рядом",
   "split_failed": "не работает",
-  "split_hint": "Экран пополам: ◀ ▶ — сторона и её звук, ▲ ▼ — канал, OK — список каналов, удержать OK — на весь экран, «Назад» — выход"
+  "split_hint": "Экран пополам: ◀ ▶ — сторона и её звук, ▲ ▼ — канал, OK — список каналов, удержать OK — на весь экран, «Назад» — выход",
+  "speed_finding": "Ищу серверы провайдера…",
+  "speed_internet": "Интернет",
+  "speed_not_measured": "не измерено"
  },
  "en": {
   "app_name": "Lupo Player",
@@ -524,7 +527,10 @@ const STRINGS = {
   "ok": "OK",
   "split_pick": "Choose the second channel — it will open side by side",
   "split_failed": "not working",
-  "split_hint": "Split screen: ◀ ▶ — side and its sound, ▲ ▼ — channel, OK — channel list, hold OK — full screen, Back — exit"
+  "split_hint": "Split screen: ◀ ▶ — side and its sound, ▲ ▼ — channel, OK — channel list, hold OK — full screen, Back — exit",
+  "speed_finding": "Looking for provider servers…",
+  "speed_internet": "Internet",
+  "speed_not_measured": "not measured"
  },
  "he": {
   "app_name": "Lupo Player",
@@ -787,7 +793,10 @@ const STRINGS = {
   "ok": "אישור",
   "split_pick": "בחרו ערוץ שני — הוא ייפתח לצד הראשון",
   "split_failed": "לא עובד",
-  "split_hint": "מסך מפוצל: ◀ ▶ — צד והשמע שלו, ▲ ▼ — ערוץ, OK — רשימת ערוצים, החזקת OK — מסך מלא, חזרה — יציאה"
+  "split_hint": "מסך מפוצל: ◀ ▶ — צד והשמע שלו, ▲ ▼ — ערוץ, OK — רשימת ערוצים, החזקת OK — מסך מלא, חזרה — יציאה",
+  "speed_finding": "מחפש את שרתי הספק…",
+  "speed_internet": "אינטרנט",
+  "speed_not_measured": "לא נמדד"
  },
  "ar": {
   "app_name": "Lupo Player",
@@ -1050,7 +1059,10 @@ const STRINGS = {
   "ok": "موافق",
   "split_pick": "اختر القناة الثانية — ستُفتح بجانب الأولى",
   "split_failed": "لا يعمل",
-  "split_hint": "شاشة مقسومة: ◀ ▶ — الجانب وصوته، ▲ ▼ — القناة، OK — قائمة القنوات، اضغط مطولًا OK — ملء الشاشة، رجوع — خروج"
+  "split_hint": "شاشة مقسومة: ◀ ▶ — الجانب وصوته، ▲ ▼ — القناة، OK — قائمة القنوات، اضغط مطولًا OK — ملء الشاشة، رجوع — خروج",
+  "speed_finding": "جارٍ البحث عن خوادم المزوّد…",
+  "speed_internet": "الإنترنت",
+  "speed_not_measured": "لم يتم القياس"
  },
  "fr": {
   "app_name": "Lupo Player",
@@ -1313,7 +1325,10 @@ const STRINGS = {
   "ok": "OK",
   "split_pick": "Choisissez la deuxième chaîne — elle s'ouvrira à côté",
   "split_failed": "ne fonctionne pas",
-  "split_hint": "Écran partagé : ◀ ▶ — côté et son, ▲ ▼ — chaîne, OK — liste des chaînes, OK maintenu — plein écran, Retour — quitter"
+  "split_hint": "Écran partagé : ◀ ▶ — côté et son, ▲ ▼ — chaîne, OK — liste des chaînes, OK maintenu — plein écran, Retour — quitter",
+  "speed_finding": "Recherche des serveurs du fournisseur…",
+  "speed_internet": "Internet",
+  "speed_not_measured": "non mesuré"
  },
  "it": {
   "app_name": "Lupo Player",
@@ -1576,7 +1591,10 @@ const STRINGS = {
   "ok": "OK",
   "split_pick": "Scegli il secondo canale — si aprirà accanto",
   "split_failed": "non funziona",
-  "split_hint": "Schermo diviso: ◀ ▶ — lato e audio, ▲ ▼ — canale, OK — elenco canali, tieni OK — schermo intero, Indietro — esci"
+  "split_hint": "Schermo diviso: ◀ ▶ — lato e audio, ▲ ▼ — canale, OK — elenco canali, tieni OK — schermo intero, Indietro — esci",
+  "speed_finding": "Cerco i server del provider…",
+  "speed_internet": "Internet",
+  "speed_not_measured": "non misurato"
  },
  "ja": {
   "app_name": "Lupo Player",
@@ -1839,7 +1857,10 @@ const STRINGS = {
   "ok": "OK",
   "split_pick": "2つ目のチャンネルを選んでください — 並べて表示されます",
   "split_failed": "動作しません",
-  "split_hint": "画面分割: ◀ ▶ — 画面と音声の切り替え、▲ ▼ — チャンネル、OK — チャンネル一覧、OK 長押し — 全画面、戻る — 終了"
+  "split_hint": "画面分割: ◀ ▶ — 画面と音声の切り替え、▲ ▼ — チャンネル、OK — チャンネル一覧、OK 長押し — 全画面、戻る — 終了",
+  "speed_finding": "プロバイダーのサーバーを探しています…",
+  "speed_internet": "インターネット",
+  "speed_not_measured": "未測定"
  },
  "ko": {
   "app_name": "Lupo Player",
@@ -2102,7 +2123,10 @@ const STRINGS = {
   "ok": "확인",
   "split_pick": "두 번째 채널을 선택하세요 — 나란히 열립니다",
   "split_failed": "작동 안 함",
-  "split_hint": "화면 분할: ◀ ▶ — 화면과 소리 선택, ▲ ▼ — 채널, OK — 채널 목록, OK 길게 — 전체 화면, 뒤로 — 종료"
+  "split_hint": "화면 분할: ◀ ▶ — 화면과 소리 선택, ▲ ▼ — 채널, OK — 채널 목록, OK 길게 — 전체 화면, 뒤로 — 종료",
+  "speed_finding": "제공업체 서버를 찾는 중…",
+  "speed_internet": "인터넷",
+  "speed_not_measured": "측정 안 됨"
  },
  "zh": {
   "app_name": "Lupo Player",
@@ -2365,6 +2389,9 @@ const STRINGS = {
   "ok": "确定",
   "split_pick": "选择第二个频道 — 它将并排打开",
   "split_failed": "不可用",
-  "split_hint": "分屏：◀ ▶ — 选择画面及其声音，▲ ▼ — 频道，OK — 频道列表，长按 OK — 全屏，返回 — 退出"
+  "split_hint": "分屏：◀ ▶ — 选择画面及其声音，▲ ▼ — 频道，OK — 频道列表，长按 OK — 全屏，返回 — 退出",
+  "speed_finding": "正在查找提供商服务器…",
+  "speed_internet": "网络",
+  "speed_not_measured": "未测量"
  }
 };

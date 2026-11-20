@@ -246,7 +246,7 @@
   // ---------- Настройки: порядок как в Android (от главного к редкому) ----------
   const LANGS = [['en', 'English'], ['ru', 'Русский'], ['he', 'עברית'], ['fr', 'Français'], ['ar', 'العربية'],
     ['it', 'Italiano'], ['ja', '日本語'], ['ko', '한국어'], ['zh', '中文']];
-  const VERSION = '0.26';
+  const VERSION = '0.27';
   // Если телевизор даёт странице не 1920 точек в ширину, вся страница уменьшается под экран — ничего не обрезается
   (function fitScreen() {
     const k = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
@@ -1043,11 +1043,137 @@
       x.send();
     });
   }
-  // Серверы провайдера — разные адреса каналов плейлиста (до 4), у открытых чужих каналов — одна строка
-  function providerHosts() {
-    const hosts = [];
-    channels.forEach(c => { try { const h = new URL(c.url).host; if (!hosts.includes(h)) hosts.push(h); } catch (e) { } });
-    return hosts.length > 8 ? hosts.slice(0, 1) : hosts.slice(0, 4);
+  // ---------- Серверы провайдера (как в Android, SpeedTestActivity): во всех включённых плейлистах ----------
+  function tget(u, ms, bin) {
+    return Promise.race([fetch(u, { cache: 'no-store' }), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms || 6000))])
+      .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return bin ? r : r.text().then(x => ({ text: x, url: r.url })); });
+  }
+  // Список кусочков HLS: адрес списка и адреса кусочков (у главного списка — первое качество)
+  async function hlsSegments(url) {
+    let r = await tget(url, 6000);
+    let base = r.url || url, text = r.text;
+    if (/#EXT-X-STREAM-INF/.test(text)) {
+      const lines = text.split(/\r?\n/);
+      const i = lines.findIndex(l => l.startsWith('#EXT-X-STREAM-INF'));
+      const uri = lines.slice(i + 1).find(x => x && !x.startsWith('#'));
+      if (!uri) return null;
+      base = new URL(uri.trim(), base).href;
+      r = await tget(base, 6000);
+      base = r.url || base; text = r.text;
+    }
+    const segs = text.split(/\r?\n/).filter(l => l && !l.startsWith('#')).map(l => new URL(l.trim(), base).href);
+    return segs.length ? { list: base, segs } : null;
+  }
+  async function findServers(stop) {
+    const found = new Map();
+    const t0 = Date.now();
+    for (const p of Store.playlists().filter(x => !x.off)) {
+      const d = pl && pl.id === p.id ? { channels } : Store.channels(p.id);
+      const live = ((d && d.channels) || []).filter(c => /^http/i.test(c.url) && !/\.(mp3|aac|mp4|mkv)(\?|$)/i.test(c.url));
+      if (!live.length) continue;
+      // Каналы с разных «входных» серверов и из разных мест списка
+      const samples = [], hosts = new Set(), domains = new Set();
+      live.forEach(c => { try { const h = new URL(c.url).host; if (!hosts.has(h) && samples.length < 6) { hosts.add(h); samples.push(c); } } catch (e) { } });
+      live.slice(0, 400).forEach(c => { try { domains.add(new URL(c.url).host.split('.').slice(-2).join('.')); } catch (e) { } });
+      const mixed = domains.size > 8;   // открытые каналы с десятков сайтов — одна строка на плейлист
+      const step = Math.max(1, Math.floor(live.length / 8));
+      for (let i = Math.floor(step / 2); i < live.length && samples.length < 12; i += step) if (!samples.includes(live[i])) samples.push(live[i]);
+      let perList = 0;
+      for (const c of samples) {
+        if (stop() || found.size >= 8 || perList >= (mixed ? 1 : 4) || Date.now() - t0 > 25000) break;
+        try {
+          let srv = null;
+          if (/m3u8/i.test(c.url)) {
+            const seg = await hlsSegments(c.url);
+            if (seg) srv = { host: new URL(seg.segs[seg.segs.length - 1]).host, url: seg.list, hls: true };
+          }
+          if (!srv) {
+            // Непрерывный поток: куда привели пересылки
+            const ctl = new AbortController();
+            const r = await Promise.race([fetch(c.url, { signal: ctl.signal }), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 5000))]);
+            try { ctl.abort(); } catch (e) { }
+            srv = { host: new URL(r.url || c.url).host, url: r.url || c.url, hls: false };
+          }
+          if (!found.has(srv.host)) { found.set(srv.host, Object.assign(srv, { playlist: p.name })); perList++; }
+        } catch (e) { }
+      }
+    }
+    return [...found.values()];
+  }
+  // Страна, город и владелец сервера: адрес через DNS Google, место — через ipwho.is
+  const where = new Map();
+  async function serverPlace(host) {
+    if (where.has(host)) return where.get(host);
+    let out = { place: '', owner: '' };
+    try {
+      let ip = host.replace(/:\d+$/, '');
+      if (!/^[\d.]+$/.test(ip)) {
+        const dns = JSON.parse((await tget('https://dns.google/resolve?name=' + encodeURIComponent(ip) + '&type=A', 5000)).text);
+        const a = (dns.Answer || []).find(x => x.type === 1);
+        ip = a ? a.data : '';
+      }
+      if (ip) {
+        const o = JSON.parse((await tget('https://ipwho.is/' + ip + '?fields=success,country_code,city,connection', 5000)).text);
+        const code = (o.country_code || '').toUpperCase();
+        if (/^[A-Z]{2}$/.test(code)) {
+          const flag = String.fromCodePoint(0x1F1E6 + code.charCodeAt(0) - 65, 0x1F1E6 + code.charCodeAt(1) - 65);
+          let name = code;
+          try { name = new Intl.DisplayNames([LANG], { type: 'region' }).of(code); } catch (e) { }
+          out.place = flag + ' ' + name + (o.city ? ', ' + o.city : '');
+        }
+        const c = o.connection || {};
+        out.owner = String(c.org || c.isp || '').slice(0, 40);
+      }
+    } catch (e) { }
+    where.set(host, out);
+    return out;
+  }
+  // Пинг и джиттер (три коротких запроса), скорость — по настоящим кусочкам эфира (~8 с) или потоку (5 с)
+  async function measureServer(sv, stop) {
+    const times = [];
+    for (let j = 0; j < 3; j++) {
+      const s0 = performance.now();
+      try { await tget(sv.hls ? sv.url : 'http://' + sv.host + '/', 6000); } catch (e) { }
+      times.push(performance.now() - s0);
+    }
+    times.sort((a, b) => a - b);
+    let bytes = 0, ms = 0, atLeast = false;
+    const t0 = performance.now();
+    try {
+      if (sv.hls) {
+        const done = new Set();
+        while (!stop() && performance.now() - t0 < 12000 && ms < 8000) {
+          const seg = await hlsSegments(sv.url);
+          const fresh = seg ? seg.segs.slice(-6).filter(u => !done.has(u)) : [];
+          if (!fresh.length) { await new Promise(r => setTimeout(r, 700)); if (!seg) break; continue; }
+          for (const u of fresh) {
+            if (stop() || performance.now() - t0 > 12000) break;
+            done.add(u);
+            const s0 = performance.now();
+            const r = await tget(u, 10000, true);
+            bytes += (await r.arrayBuffer()).byteLength;
+            ms += performance.now() - s0;
+            gauge(bytes * 8 / (ms / 1000) / 1e6);
+          }
+        }
+      } else {
+        const ctl = new AbortController();
+        const r = await fetch(sv.url, { signal: ctl.signal });
+        const rd = r.body.getReader();
+        const s0 = performance.now();
+        while (!stop() && performance.now() - s0 < 5000) {
+          const { done, value } = await rd.read();
+          if (done) break;
+          bytes += value.byteLength;
+          gauge(bytes * 8 / ((performance.now() - s0) / 1000) / 1e6);
+        }
+        ms = performance.now() - s0;
+        try { ctl.abort(); } catch (e) { }
+        atLeast = true;   // живой поток идёт с его собственной скоростью — сервер может больше
+      }
+    } catch (e) { }
+    return { ping: times[0] > 5900 ? 0 : Math.round(times[0]), jitter: Math.round(times[2] - times[0]),
+      mbps: ms > 0 && bytes > 0 ? bytes * 8 / (ms / 1000) / 1e6 : 0, atLeast };
   }
   function gauge(mbps) {
     const max = mbps > 1000 ? 2500 : mbps > 500 ? 1000 : 500;
@@ -1063,16 +1189,7 @@
     gauge(0);
     const box = $('sp-servers');
     box.innerHTML = '';
-    const hosts = providerHosts();
-    if (!hosts.length) box.textContent = t('speed_no_servers');
-    hosts.forEach(h => {
-      const row = document.createElement('div');
-      row.className = 'sp-row';
-      row.innerHTML = '<div></div><div class="h"></div><div class="h"></div>';
-      row.firstChild.textContent = h;
-      row.children[1].textContent = t('speed_wait');
-      box.appendChild(row);
-    });
+    let run = 0;
     const close = () => { $('speed').classList.add('hidden'); back(); };
     Nav.setScope($('speed'), close);
     Nav.focus($('sp-btn'));
@@ -1098,20 +1215,44 @@
           gauge(mb);
         }
         $('sp-hd').textContent = mb >= 25 ? '✓ 4K' : mb >= 8 ? '✓ HD' : '✗';
-        // Серверы провайдера: время ответа каждого
-        for (let i = 0; i < hosts.length; i++) {
-          const row = box.children[i];
-          $('sp-status').textContent = t('speed_measuring', hosts[i]);
-          const times = [];
-          for (let j = 0; j < 3; j++) {
-            const s0 = performance.now();
-            try { await xhr('http://' + hosts[i] + '/', null, 8000); } catch (e) { }
-            times.push(performance.now() - s0);
-          }
-          times.sort((a, b) => a - b);
-          row.children[1].textContent = times[0] > 9000 ? t('speed_failed') : t('speed_ping', Math.round(times[0]));
-          row.children[2].textContent = t('speed_jitter', Math.round(times[2] - times[0]));
+        // Серверы провайдера во всех включённых плейлистах: страна, город, владелец, скорость, пинг, джиттер
+        const my = ++run;
+        const stop = () => my !== run || $('speed').classList.contains('hidden');
+        gauge(0);
+        $('sp-status').textContent = t('speed_finding');
+        box.innerHTML = '';
+        const servers = await findServers(stop);
+        if (!servers.length) box.textContent = t('speed_no_servers');
+        const rows = servers.map(sv => {
+          const row = document.createElement('div');
+          row.className = 'sp-row focusable';
+          row.tabIndex = 0;
+          row.innerHTML = '<div><div class="n"></div><div class="h"></div></div><div class="v"></div><div class="h"></div><div class="h"></div>';
+          row.querySelector('.n').textContent = sv.playlist;
+          row.querySelector('.h').textContent = sv.host;
+          row.children[1].textContent = t('speed_wait');
+          box.appendChild(row);
+          return row;
+        });
+        let bestName = '', bestSpeed = 0;
+        for (let i = 0; i < servers.length && !stop(); i++) {
+          const sv = servers[i], row = rows[i];
+          const pl2 = await serverPlace(sv.host);
+          const label = pl2.place ? sv.playlist + ' — ' + pl2.place : sv.playlist;
+          row.querySelector('.n').textContent = label;
+          row.querySelector('.h').textContent = pl2.owner ? pl2.owner + '  ·  ' + sv.host : sv.host;
+          $('sp-status').textContent = t('speed_measuring', label);
+          gauge(0);
+          const r = await measureServer(sv, stop);
+          row.children[1].textContent = r.mbps > 0 ? (r.atLeast ? '≥ ' : '') + (r.mbps >= 10 ? Math.round(r.mbps) : r.mbps.toFixed(1)) + ' ' + t('speed_unit') : t('speed_failed');
+          row.children[2].textContent = r.ping ? t('speed_ping', r.ping) : '';
+          row.children[3].textContent = r.ping ? t('speed_jitter', r.jitter) : '';
+          if (!r.atLeast && r.mbps > bestSpeed) { bestSpeed = r.mbps; bestName = label; }
+          if (!(r.mbps > 0)) Store.addLog(new Date().toLocaleString(LANG) + ' — speed test\n' + sv.playlist + ' (' + sv.host + ')');
         }
+        gauge(mb);
+        if (servers.length > 1 && bestSpeed > 0) $('sp-status').textContent = t('speed_best', bestName);
+        else
         $('sp-status').textContent = t('speed_done');
       } catch (e) {
         $('sp-status').textContent = t('err_generic', e && e.message || '');
