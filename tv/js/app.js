@@ -246,7 +246,7 @@
   // ---------- Настройки: порядок как в Android (от главного к редкому) ----------
   const LANGS = [['en', 'English'], ['ru', 'Русский'], ['he', 'עברית'], ['fr', 'Français'], ['ar', 'العربية'],
     ['it', 'Italiano'], ['ja', '日本語'], ['ko', '한국어'], ['zh', '中文']];
-  const VERSION = '0.24';
+  const VERSION = '0.25';
   // Если телевизор даёт странице не 1920 точек в ширину, вся страница уменьшается под экран — ничего не обрезается
   (function fitScreen() {
     const k = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
@@ -806,9 +806,9 @@
     playingCh = c;
     arch = null;
     if (Radio.looks(c)) { Radio.show(c, dispName(c)); Radio.visible(false); } else Radio.hide();
-    Player.start(c.url, { web: webEngine(c) });
+    startChannel(c, c.url);
     clearTimeout(retryTimer);
-    retryTimer = setTimeout(() => { if (shown[cur] === c && !Player.isPlaying()) Player.start(c.url, { web: webEngine(c) }); }, 7000);
+    retryTimer = setTimeout(() => { if (shown[cur] === c && !Player.isPlaying()) startChannel(c, c.url); }, 7000);
     Store.saveLast({ pl: pl.id, group, name: c.name });
   }
   function playFromGuide(i) {
@@ -1580,35 +1580,55 @@
     Nav.focus($('vod-grid').querySelector('.vod-item') || $('vod-cats').firstChild);
   }
 
-  // ---------- Смотреть рядом: два канала на экране (Samsung, два родных плеера) ----------
-  let split = -1;   // номер второго канала в списке, −1 — обычный просмотр
+  // ---------- Смотреть рядом: два канала на экране ----------
+  // Второй канал выбирается в обычном списке слева (как по «влево»). ▲▼ — другой канал справа,
+  // OK — правый канал на весь экран, «Назад» — левый на весь экран
+  let split = -1;            // −1 — обычный просмотр; иначе номер второго канала в splitList
+  let splitList = [], splitPending = false, splitMode = 'multiview';
   function splitPick() {
-    const list = shown.map((c, i) => ({ c, i })).filter(x => x.i !== cur);
-    if (!list.length) return playerScope();
-    pick(t('split_watch'), list.map(x => ({ label: (x.i + 1) + '  ' + dispName(x.c) })), j => splitStart(list[j].i), playerScope);
+    splitPending = true;
+    openSide();
+    toast(t('split_pick'));
   }
-  function splitStart(j) {
-    split = (j + shown.length) % shown.length;
+  function splitStart(list, j, mode) {
+    splitList = list;
+    split = (j + list.length) % list.length;
+    splitMode = mode || 'multiview';
     Radio.hide();
     $('bar').classList.add('hidden');
-    Player.split(shown[cur].url, shown[split].url);
+    Player.split(streamUrl(shown[cur]), splitList[split].url, splitMode);
     Nav.setScope($('scr-player'), splitEnd, splitKeys);
-    toast(dispName(shown[cur]) + '  |  ' + dispName(shown[split]));
+    toast(dispName(shown[cur]) + '  |  ' + dispName(splitList[split]));
   }
-  // ▲▼ — другой канал справа, OK — правый канал на весь экран, «Назад» — левый канал на весь экран
   function splitKeys(e) {
     const k = e.keyCode;
     if (k === 38 || k === 427 || k === 40 || k === 428) {
       let j = split;
-      do { j = (j + (k === 38 || k === 427 ? 1 : -1) + shown.length) % shown.length; } while (j === cur && shown.length > 1);
-      splitStart(j);
+      do { j = (j + (k === 38 || k === 427 ? 1 : -1) + splitList.length) % splitList.length; } while (splitList[j] === shown[cur] && splitList.length > 1);
+      splitStart(splitList, j, splitMode);
       return true;
     }
-    if (k === 13) { const j = split; split = -1; Player.splitStop(); playerScope(); play(j); return true; }
+    if (k === 13) {
+      const c = splitList[split];
+      split = -1;
+      Player.splitStop();
+      playerScope();
+      let i = shown.indexOf(c);
+      if (i < 0) { setShown(splitList); group = sideGroup; i = shown.indexOf(c); }
+      play(i);
+      return true;
+    }
     return ![27, 8, 10009, 461].includes(k);   // «Назад» — к обычному просмотру
   }
   function splitEnd() { split = -1; Player.splitStop(); playerScope(); play(cur); }
-  Player.on('splitError', msg => { toast(t('play_error')); Store.addLog(t('split_watch') + '\n' + msg); if (split >= 0) splitEnd(); });
+  // Второй видеоресурс телевизор не дал — пробуем правый канал через браузерный плеер; не вышло и так — сообщаем
+  Player.on('splitError', e => {
+    if (split < 0) return;
+    Store.addLog(new Date().toLocaleString(LANG) + ' — ' + t('split_watch') + ' (' + splitMode + ')\n' + (e && e.msg || e));
+    if (splitMode === 'multiview' && e && e.i === 1) { splitStart(splitList, split, 'web'); return; }
+    toast(t('split_watch') + ': ' + t('split_failed'));
+    splitEnd();
+  });
 
   // Размер картинки (удерживать OK на видео): по размеру, растянуть, увеличить — запоминается
   const SIZES = ['fit', 'stretch', 'zoom'];
@@ -1683,6 +1703,45 @@
     Player.start(streamUrl(c), { web: true });
     return true;
   }
+  // Родной плеер Samsung читает номер кусочка эфира (EXT-X-MEDIA-SEQUENCE) как 32-битное число. У многих
+  // радио и каналов номер больше (время в микросекундах) — плеер играет один кусочек и останавливается.
+  // Перед первым включением такого канала смотрим его список и сразу включаем браузерный плеер (hls.js),
+  // не дожидаясь, пока родной споткнётся
+  const seqChecked = new Map();   // адрес канала → true (номер слишком большой) / false
+  async function bigSequence(url) {
+    const get = async u => {
+      const r = await Promise.race([fetch(u, { cache: 'no-store' }), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 3000))]);
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.text();
+    };
+    let text = await get(url);
+    if (/#EXT-X-STREAM-INF/.test(text)) {
+      const lines = text.split(/\r?\n/);
+      const i = lines.findIndex(l => l.startsWith('#EXT-X-STREAM-INF'));
+      const uri = lines.slice(i + 1).find(x => x && !x.startsWith('#'));
+      if (!uri) return false;
+      text = await get(new URL(uri.trim(), url).href);
+    }
+    const m = /#EXT-X-MEDIA-SEQUENCE:\s*(\d+)/.exec(text);
+    return !!m && (m[1].length > 10 || Number(m[1]) > 2147483647);
+  }
+  let startToken = 0;
+  function startChannel(c, url) {
+    const my = ++startToken;
+    if (!Player.native || webEngine(c) || arch || !/m3u8/i.test(url) || seqChecked.has(c.url)) {
+      Player.start(url, { web: webEngine(c) });
+      return;
+    }
+    bigSequence(url).catch(() => false).then(big => {
+      seqChecked.set(c.url, big);
+      if (my !== startToken) return;
+      if (big) {
+        setWeb(c, true);
+        Store.addLog(new Date().toLocaleString(LANG) + ' — ' + c.name + '\nEXT-X-MEDIA-SEQUENCE > 2³¹ → hls.js');
+      }
+      Player.start(url, { web: webEngine(c) });
+    });
+  }
   function reconnect(why) {
     const c = shown[cur];
     if (!c || vod || split >= 0) return;
@@ -1691,7 +1750,7 @@
     if (reconnects.length >= 1 && toWebEngine(c, why)) return;
     if (reconnects.length >= 3) { reconnects = []; return playError(why + ' (3×)'); }
     reconnects.push(now);
-    Player.start(streamUrl(c), { web: webEngine(c) });
+    startChannel(c, streamUrl(c));
   }
   Player.on('buffering', on => {
     clearTimeout(stallTimer);
@@ -1766,12 +1825,12 @@
     playerScope();
     $('pl-spinner').classList.remove('hidden');
     const url = streamUrl(c);
-    Player.start(url, { web: webEngine(c) });
+    startChannel(c, url);
     if (Radio.looks(c)) Radio.show(c, dispName(c)); else Radio.hide();
     // Канал не пошёл за 7 с (бывает при запуске программы) — включаем его ещё раз сами
     clearTimeout(retryTimer);
     const my = c;
-    retryTimer = setTimeout(() => { if (shown[cur] === my && !Player.isPlaying()) Player.start(url, { web: webEngine(my) }); }, 7000);
+    retryTimer = setTimeout(() => { if (shown[cur] === my && !Player.isPlaying()) startChannel(my, url); }, 7000);
     Store.saveLast({ pl: pl.id, group, name: c.name });
     showBar();
   }
@@ -1969,6 +2028,15 @@
     Nav.focus(box.children[Math.max(0, idx)]);
   }
   function sidePlay(i, p) {
+    if (splitPending) {
+      // Второй канал для «Смотреть рядом»
+      splitPending = false;
+      const list = sideShown.slice();
+      closeSide();
+      if (list[i] === shown[cur]) { playerScope(); return; }
+      splitStart(list, i);
+      return;
+    }
     closeSide();
     if (sideGroup !== group) { group = sideGroup; setShown(sideShown); prev = -1; }
     if (p) playArchive(i, p); else play(i);
@@ -2107,6 +2175,7 @@
     closeSide();
   }
   function closeSide() {
+    if (splitPending && split < 0) { splitPending = false; }
     $('side').classList.add('hidden');
     hideSideGroups();
     if (!$('guide').classList.contains('hidden')) return;

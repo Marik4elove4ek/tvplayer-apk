@@ -87,7 +87,10 @@ const Player = (() => {
       av.open(url);
       av.setDisplayRect(rect ? rect.x : 0, rect ? rect.y : 0, rect ? rect.w : 1920, rect ? rect.h : 1080);
       applySize();
+      // Запас перед началом и после «подгрузки»: у Samsung по умолчанию после подгрузки всего ~4 с —
+      // это один кусочек эфира, и поток снова встаёт. После подгрузки набираем вдвое больше
       try { av.setBufferingParam('PLAYER_BUFFER_FOR_PLAY', 'PLAYER_BUFFER_SIZE_IN_SECOND', BUF[buffer]); } catch (e) { }
+      try { av.setBufferingParam('PLAYER_BUFFER_FOR_RESUME', 'PLAYER_BUFFER_SIZE_IN_SECOND', Math.max(8, BUF[buffer] * 2)); } catch (e) { }
       av.setListener({
         onbufferingstart() { if (my === token) emit('buffering', true); },
         onbufferingcomplete() { if (my === token) emit('buffering', false); },
@@ -231,38 +234,69 @@ const Player = (() => {
   }
   function setSize(v) { size = ['fit', 'stretch', 'zoom'].includes(v) ? v : 'fit'; applySize(); }
 
-  // ---------- Смотреть рядом (Samsung): два плеера из avplaystore, каждый в своей половине экрана ----------
+  // ---------- Смотреть рядом (Samsung) ----------
+  // Два видео сразу на обычном (не рекламном) телевизоре Samsung: «видеомикшер» (USE_VIDEOMIXER) есть только
+  // у рекламных экранов, поэтому так:
+  //  1) 'multiview' — два родных плеера, второму отдаётся второй видеоресурс телевизора (IN_APP_MULTIVIEW, с Tizen 7);
+  //  2) 'web' — левый канал в родном плеере, правый — в браузерном (hls.js, без звука).
+  // Звук — только у левого канала
   const store = (() => { try { return window.webapis && webapis.avplaystore ? webapis.avplaystore : null; } catch (e) { return null; } })();
-  let sp = [];
+  let sp = [], splitWeb = null;
   function splitStop() {
     sp.forEach(p => { try { p.stop(); } catch (e) { } try { p.close(); } catch (e) { } });
     sp = [];
+    if (splitWeb) { try { splitWeb.destroy(); } catch (e) { } splitWeb = null; }
+    document.documentElement.classList.remove('split-web');
+    video.muted = false;
+    const s = video.style;
+    s.position = ''; s.left = ''; s.top = ''; s.width = ''; s.height = '';
   }
-  function split(url1, url2) {
+  function avSplitPlayer(p, u, i, my, res) {
+    p.open(u);
+    if (res) p.setStreamingProperty('IN_APP_MULTIVIEW', res);
+    p.setDisplayRect(i ? 960 : 0, 270, 960, 540);
+    try { p.setDisplayMethod('PLAYER_DISPLAY_MODE_LETTER_BOX'); } catch (e) { }
+    try { p.setBufferingParam('PLAYER_BUFFER_FOR_PLAY', 'PLAYER_BUFFER_SIZE_IN_SECOND', 6); } catch (e) { }
+    p.setListener({
+      onerror(e) { if (my === token) emit('splitError', { i, msg: 'AVPlay ' + (i + 1) + ': ' + e }); },
+      onstreamcompleted() { }, onbufferingstart() { }, onbufferingcomplete() { }, onevent() { }
+    });
+    p.prepareAsync(() => {
+      if (my !== token) return;
+      try { p.play(); if (i === 0) emit('playing'); } catch (e) { emit('splitError', { i, msg: 'play ' + (i + 1) + ': ' + (e.message || e.name || e) }); }
+    }, e => { if (my === token) emit('splitError', { i, msg: 'prepare ' + (i + 1) + ': ' + (e && (e.message || e.name) || e) }); });
+  }
+  function split(url1, url2, mode) {
     stop();
     splitStop();
     const my = ++token;
     document.documentElement.classList.add('av-on');
     try {
+      if (mode === 'web') {
+        // Левый — родной плеер в левой половине, правый — <video> с hls.js в правой половине
+        const p = store ? store.getPlayer() : av;
+        sp.push(p);
+        avSplitPlayer(p, url1, 0, my, null);
+        document.documentElement.classList.add('split-web');
+        const s = video.style;
+        s.position = 'absolute'; s.left = '960px'; s.top = '270px'; s.width = '960px'; s.height = '540px';
+        video.muted = true;
+        if (/m3u8/i.test(url2) && window.Hls && Hls.isSupported()) {
+          splitWeb = new Hls({ enableWorker: true, liveSyncDurationCount: 3 });
+          splitWeb.on(Hls.Events.ERROR, (ev, d) => { if (d.fatal && my === token) emit('splitError', { i: 1, msg: 'HLS: ' + (d.details || d.type) }); });
+          splitWeb.loadSource(url2);
+          splitWeb.attachMedia(video);
+        } else video.src = url2;
+        video.play().catch(() => { });
+        return;
+      }
       [url1, url2].forEach((u, i) => {
         const p = store.getPlayer();
         sp.push(p);
-        p.open(u);
-        try { p.setStreamingProperty('USE_VIDEOMIXER'); } catch (e) { }
-        p.setDisplayRect(i ? 960 : 0, 270, 960, 540);
-        try { p.setDisplayMethod('PLAYER_DISPLAY_MODE_LETTER_BOX'); } catch (e) { }
-        p.setListener({
-          onerror(e) { if (my === token) emit('splitError', 'AVPlay ' + (i + 1) + ': ' + e); },
-          onstreamcompleted() { }, onbufferingstart() { }, onbufferingcomplete() { }, onevent() { }
-        });
+        avSplitPlayer(p, u, i, my, i ? 'VIDEO_VIEW_RESOURCE_SUB' : 'VIDEO_VIEW_RESOURCE_MAIN');
       });
-      sp.forEach((p, i) => p.prepareAsync(() => {
-        if (my !== token) return;
-        try { p.setStreamingProperty('SET_MIXEDFRAME'); } catch (e) { }
-        try { p.play(); } catch (e) { emit('splitError', 'play ' + (i + 1) + ': ' + (e.message || e.name || e)); }
-      }, e => { if (my === token) emit('splitError', 'prepare ' + (i + 1) + ': ' + (e && (e.message || e.name) || e)); }));
     } catch (e) {
-      emit('splitError', (e.message || e.name || String(e)));
+      emit('splitError', { i: 1, msg: (e.message || e.name || String(e)) });
     }
   }
 

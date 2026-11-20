@@ -258,7 +258,10 @@ const STRINGS = {
   "update_later": "Позже",
   "update_downloading": "Загрузка новой версии…",
   "update_failed": "Не удалось скачать обновление",
-  "ok": "OK"
+  "ok": "OK",
+  "split_pick": "Выберите второй канал — он откроется рядом",
+  "split_failed": "не работает",
+  "split_hint": "Экран пополам: ◀ ▶ — сторона и её звук, ▲ ▼ — канал, OK — список каналов, удержать OK — на весь экран, «Назад» — выход"
  },
  "en": {
   "app_name": "Lupo Player",
@@ -518,7 +521,10 @@ const STRINGS = {
   "update_later": "Later",
   "update_downloading": "Downloading new version…",
   "update_failed": "Could not download the update",
-  "ok": "OK"
+  "ok": "OK",
+  "split_pick": "Choose the second channel — it will open side by side",
+  "split_failed": "not working",
+  "split_hint": "Split screen: ◀ ▶ — side and its sound, ▲ ▼ — channel, OK — channel list, hold OK — full screen, Back — exit"
  },
  "he": {
   "app_name": "Lupo Player",
@@ -778,7 +784,10 @@ const STRINGS = {
   "update_later": "אחר כך",
   "update_downloading": "מוריד גרסה חדשה…",
   "update_failed": "לא ניתן להוריד את העדכון",
-  "ok": "אישור"
+  "ok": "אישור",
+  "split_pick": "בחרו ערוץ שני — הוא ייפתח לצד הראשון",
+  "split_failed": "לא עובד",
+  "split_hint": "מסך מפוצל: ◀ ▶ — צד והשמע שלו, ▲ ▼ — ערוץ, OK — רשימת ערוצים, החזקת OK — מסך מלא, חזרה — יציאה"
  },
  "ar": {
   "app_name": "Lupo Player",
@@ -1038,7 +1047,10 @@ const STRINGS = {
   "update_later": "لاحقًا",
   "update_downloading": "جارٍ تنزيل الإصدار الجديد…",
   "update_failed": "تعذر تنزيل التحديث",
-  "ok": "موافق"
+  "ok": "موافق",
+  "split_pick": "اختر القناة الثانية — ستُفتح بجانب الأولى",
+  "split_failed": "لا يعمل",
+  "split_hint": "شاشة مقسومة: ◀ ▶ — الجانب وصوته، ▲ ▼ — القناة، OK — قائمة القنوات، اضغط مطولًا OK — ملء الشاشة، رجوع — خروج"
  },
  "fr": {
   "app_name": "Lupo Player",
@@ -1298,7 +1310,10 @@ const STRINGS = {
   "update_later": "Plus tard",
   "update_downloading": "Téléchargement de la nouvelle version…",
   "update_failed": "Échec du téléchargement de la mise à jour",
-  "ok": "OK"
+  "ok": "OK",
+  "split_pick": "Choisissez la deuxième chaîne — elle s'ouvrira à côté",
+  "split_failed": "ne fonctionne pas",
+  "split_hint": "Écran partagé : ◀ ▶ — côté et son, ▲ ▼ — chaîne, OK — liste des chaînes, OK maintenu — plein écran, Retour — quitter"
  },
  "it": {
   "app_name": "Lupo Player",
@@ -1558,7 +1573,10 @@ const STRINGS = {
   "update_later": "Più tardi",
   "update_downloading": "Download della nuova versione…",
   "update_failed": "Impossibile scaricare l’aggiornamento",
-  "ok": "OK"
+  "ok": "OK",
+  "split_pick": "Scegli il secondo canale — si aprirà accanto",
+  "split_failed": "non funziona",
+  "split_hint": "Schermo diviso: ◀ ▶ — lato e audio, ▲ ▼ — canale, OK — elenco canali, tieni OK — schermo intero, Indietro — esci"
  },
  "ja": {
   "app_name": "Lupo Player",
@@ -1818,7 +1836,10 @@ const STRINGS = {
   "update_later": "あとで",
   "update_downloading": "新しいバージョンをダウンロード中…",
   "update_failed": "更新をダウンロードできませんでした",
-  "ok": "OK"
+  "ok": "OK",
+  "split_pick": "2つ目のチャンネルを選んでください — 並べて表示されます",
+  "split_failed": "動作しません",
+  "split_hint": "画面分割: ◀ ▶ — 画面と音声の切り替え、▲ ▼ — チャンネル、OK — チャンネル一覧、OK 長押し — 全画面、戻る — 終了"
  },
  "ko": {
   "app_name": "Lupo Player",
@@ -2078,7 +2099,10 @@ const STRINGS = {
   "update_later": "나중에",
   "update_downloading": "새 버전을 다운로드하는 중…",
   "update_failed": "업데이트를 다운로드할 수 없습니다",
-  "ok": "확인"
+  "ok": "확인",
+  "split_pick": "두 번째 채널을 선택하세요 — 나란히 열립니다",
+  "split_failed": "작동 안 함",
+  "split_hint": "화면 분할: ◀ ▶ — 화면과 소리 선택, ▲ ▼ — 채널, OK — 채널 목록, OK 길게 — 전체 화면, 뒤로 — 종료"
  },
  "zh": {
   "app_name": "Lupo Player",
@@ -2338,6 +2362,9 @@ const STRINGS = {
   "update_later": "稍后",
   "update_downloading": "正在下载新版本…",
   "update_failed": "无法下载更新",
-  "ok": "确定"
+  "ok": "确定",
+  "split_pick": "选择第二个频道 — 它将并排打开",
+  "split_failed": "不可用",
+  "split_hint": "分屏：◀ ▶ — 选择画面及其声音，▲ ▼ — 频道，OK — 频道列表，长按 OK — 全屏，返回 — 退出"
  }
 };
