@@ -237,7 +237,7 @@
   // ---------- Настройки: порядок как в Android (от главного к редкому) ----------
   const LANGS = [['en', 'English'], ['ru', 'Русский'], ['he', 'עברית'], ['fr', 'Français'], ['ar', 'العربية'],
     ['it', 'Italiano'], ['ja', '日本語'], ['ko', '한국어'], ['zh', '中文']];
-  const VERSION = '0.16';
+  const VERSION = '0.17';
   // Если телевизор даёт странице не 1920 точек в ширину, вся страница уменьшается под экран — ничего не обрезается
   (function fitScreen() {
     const k = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
@@ -368,6 +368,36 @@
       setTimeout(() => location.reload(), 1200);
     }, back);
   }
+  // Копия с Android-приставки: кроме плейлистов переносим избранное (в своём порядке), свои названия каналов,
+  // каналы и папки под PIN-кодом, отключённые плейлисты и настройки (PIN-коды там зашифрованы — их задают заново)
+  function importAndroid(prefs, list) {
+    if (!prefs) return;
+    const v = k => (prefs[k] ? prefs[k].v : undefined);
+    const arr = k => { const x = v(k); if (Array.isArray(x)) return x; try { return JSON.parse(x || '[]'); } catch (e) { return []; } };
+    const ids = list.map(p => p.id);
+    let fav = arr('favlist_all');
+    if (!fav.length) ids.forEach(id => arr('favlist_' + id).forEach(n => fav.push(id + '|' + n)));
+    if (fav.length) Store.saveFavorites([...new Set(fav)]);
+    const names = {};
+    ids.forEach(id => { try { const m = JSON.parse(v('names_' + id) || '{}'); Object.keys(m).forEach(n => { names[id + '|' + n] = m[n]; }); } catch (e) { } });
+    if (Object.keys(names).length) Store.saveRenames(names);
+    const locked = [];
+    ids.forEach(id => (v('locked_' + id) || []).forEach(n => locked.push(id + '|' + n)));
+    if (locked.length) Store.saveLocked(locked);
+    const lg = (v('locked_groups') || []).map(k => k.replace('\u0003', '|'));
+    if (lg.length) Store.saveLockedGroups(lg);
+    const off = v('disabled_playlists') || [];
+    if (off.length) Store.savePlaylists(list.map(p => Object.assign(p, { off: off.includes(p.id) })));
+    if (v('parental') !== undefined) Store.saveParental(!!v('parental'));
+    if (['off', 'right', 'left'].includes(v('clock_pos'))) Store.saveClock(v('clock_pos'));
+    if (v('clock_rainbow') !== undefined) Store.saveClockRainbow(!!v('clock_rainbow'));
+    if (v('overlay_seconds')) Store.saveBarSec(+v('overlay_seconds'));
+    if (v('transparency') !== undefined) Store.saveTransp(Math.max(0, Math.min(3, +v('transparency'))));
+    if (v('channel_tiles') !== undefined) Store.saveView(v('channel_tiles') ? 'tiles' : 'rows');
+    if (['small', 'medium', 'large'].includes(v('buffer'))) Store.saveBuffer(v('buffer'));
+    if (v('audio_lang')) Store.saveAudio(v('audio_lang'));
+    if (v('sub_lang')) Store.saveSubs(v('sub_lang'));
+  }
   async function restoreBackup() {
     let bytes = null;
     if (Backup.onTv) {
@@ -385,12 +415,18 @@
     if (!own) return foreignRestore(bytes);
     if (!(await new Promise(res => ask(t('backup_replace_q'), t('backup_restore'), () => res(true), () => res(false))))) { openSettings('backup'); return; }
     try {
-      const pass = Backup.needsPassword(text) ? prompt(t('backup_password')) || '' : '';
+      // Копия с паролем (старые версии Android) — пароль вводится пультом (prompt() на телевизоре не работает)
+      let pass = '';
+      if (Backup.needsPassword(text)) {
+        pass = await new Promise(res => inputDialog(t('backup_password'), '', true, x => { setTimeout(() => res(x), 0); }, () => res(null)));
+        if (pass === null) { openSettings('backup'); return; }
+      }
       const data = await Backup.unpack(text, pass);
       const list = (data.playlists || []).map(o => ({ id: String(o.id || Date.now().toString(36) + Math.random().toString(36).slice(2, 5)),
         name: o.name || t('default_playlist_name'), type: o.type === 'xtream' ? 'xtream' : 'm3u',
         url: o.url || '', server: o.server || '', user: o.user || '', pass: o.pass || '', epg: o.epg || '' }));
       Store.savePlaylists(list);
+      importAndroid(data.prefs && data.prefs.playlists, list);
       const web = data.prefs && data.prefs.lupo_web;
       if (web) {
         const setters = { fav: Store.saveFavorites, audio: Store.saveAudio, subs: Store.saveSubs, view: Store.saveView, barSec: Store.saveBarSec, transp: Store.saveTransp, buffer: Store.saveBuffer };
