@@ -4,8 +4,25 @@ const Store = (() => {
   function get(k, def) {
     try { const v = localStorage.getItem(K + k); return v == null ? def : JSON.parse(v); } catch (e) { return def; }
   }
+  // Старые версии держали каналы плейлистов в этой же памяти (всего ~5 МБ). Когда она переполнена, телевизор
+  // молча отказывается записывать что-либо ещё: избранное, последний канал, восстановленную копию.
+  // Каналы теперь в IndexedDB, поэтому старые записи убираем
+  function purge() {
+    try {
+      const del = [];
+      for (let i = 0; i < localStorage.length; i++) { const key = localStorage.key(i); if (key && key.startsWith(K + 'ch.')) del.push(key); }
+      del.forEach(key => localStorage.removeItem(key));
+    } catch (e) { }
+  }
+  purge();
   function set(k, v) {
-    try { localStorage.setItem(K + k, JSON.stringify(v)); } catch (e) { }
+    const text = JSON.stringify(v);
+    try { localStorage.setItem(K + k, text); } catch (e) {
+      // Память переполнена: освобождаем место (журнал, отчёты о программе) и записываем ещё раз
+      purge();
+      try { localStorage.removeItem(K + 'log'); Object.keys(localStorage).filter(x => x.startsWith('epgrep.')).forEach(x => localStorage.removeItem(x)); } catch (e2) { }
+      try { localStorage.setItem(K + k, text); } catch (e2) { }
+    }
     // Плейлисты, избранное, настройки изменились — автокопия в памяти телевизора (см. app.js)
     if (!/^(ch\.|log$|last$)/.test(k) && window.LupoAutosave) window.LupoAutosave();
   }

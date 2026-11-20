@@ -246,7 +246,7 @@
   // ---------- Настройки: порядок как в Android (от главного к редкому) ----------
   const LANGS = [['en', 'English'], ['ru', 'Русский'], ['he', 'עברית'], ['fr', 'Français'], ['ar', 'العربية'],
     ['it', 'Italiano'], ['ja', '日本語'], ['ko', '한국어'], ['zh', '中文']];
-  const VERSION = '0.29';
+  const VERSION = '0.30';
   // Если телевизор даёт странице не 1920 точек в ширину, вся страница уменьшается под экран — ничего не обрезается
   (function fitScreen() {
     const k = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
@@ -349,13 +349,16 @@
     }
     return out;
   }
+  async function autosaveNow() {
+    clearTimeout(autoTimer);
+    if (!Backup.onTv) return;
+    try { Backup.save(AUTO, await Backup.pack({ app: 'lupo-auto', ls: autoKeys() })); }
+    catch (e) { Store.addLog(new Date().toLocaleString(LANG) + ' — autosave\n' + (e && (e.message || e.name) || e)); }
+  }
   window.LupoAutosave = () => {
     if (!Backup.onTv) return;
     clearTimeout(autoTimer);
-    autoTimer = setTimeout(async () => {
-      try { Backup.save(AUTO, await Backup.pack({ app: 'lupo-auto', ls: autoKeys() })); }
-      catch (e) { Store.addLog(new Date().toLocaleString(LANG) + ' — autosave\n' + (e && (e.message || e.name) || e)); }
-    }, 4000);
+    autoTimer = setTimeout(autosaveNow, 4000);
   };
   function putAuto(d) { Object.keys(d.ls || {}).forEach(k => { try { localStorage.setItem(k, d.ls[k]); } catch (e) { } }); }
   async function autoRestore() {
@@ -407,7 +410,7 @@
       Store.savePlaylists(all);
       Store.saveFavorites(fav);
       toast(t('backup_restored'));
-      setTimeout(() => location.reload(), 1200);
+      autosaveNow().then(() => setTimeout(() => location.reload(), 1200));
     }, back);
   }
   // Копия с Android-приставки: кроме плейлистов переносим избранное (в своём порядке), свои названия каналов,
@@ -465,7 +468,7 @@
       }
       const data = await Backup.unpack(text, pass);
       // Автокопия Лупо: возвращаем всё как было
-      if (data && data.app === 'lupo-auto') { putAuto(data); toast(t('backup_restored')); setTimeout(() => location.reload(), 1200); return; }
+      if (data && data.app === 'lupo-auto') { putAuto(data); toast(t('backup_restored')); autosaveNow().then(() => setTimeout(() => location.reload(), 1200)); return; }
       const list = (data.playlists || []).map(o => ({ id: String(o.id || Date.now().toString(36) + Math.random().toString(36).slice(2, 5)),
         name: o.name || t('default_playlist_name'), type: o.type === 'xtream' ? 'xtream' : 'm3u',
         url: o.url || '', server: o.server || '', user: o.user || '', pass: o.pass || '', epg: o.epg || '' }));
@@ -480,7 +483,7 @@
       if (LANGS.some(l => l[0] === lang)) Store.saveLang(lang);
       Store.saveLast(null);
       toast(t('backup_restored'));
-      setTimeout(() => location.reload(), 1200);
+      autosaveNow().then(() => setTimeout(() => location.reload(), 1200));
     } catch (e) {
       toast(t('backup_failed'));
       Store.addLog(new Date().toLocaleString(LANG) + ' — restore\n' + (e && (e.message || e.name) || e));
