@@ -237,7 +237,7 @@
   // ---------- Настройки: порядок как в Android (от главного к редкому) ----------
   const LANGS = [['en', 'English'], ['ru', 'Русский'], ['he', 'עברית'], ['fr', 'Français'], ['ar', 'العربية'],
     ['it', 'Italiano'], ['ja', '日本語'], ['ko', '한국어'], ['zh', '中文']];
-  const VERSION = '0.18';
+  const VERSION = '0.19';
   // Если телевизор даёт странице не 1920 точек в ширину, вся страница уменьшается под экран — ничего не обрезается
   (function fitScreen() {
     const k = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
@@ -876,6 +876,15 @@
       if (e.keyCode === 38 && i === 0) { Nav.focus(list[list.length - 1]); return true; }
     }
     const inMenu = el && el.closest('#dr-menu');
+    // Меню (Поиск … Настройки): ▲▼ только внутри меню — на первом и последнем пункте курсор стоит на месте,
+    // а не перескакивает вправо к папкам
+    if (inMenu && (e.keyCode === 38 || e.keyCode === 40)) {
+      const list = [...$('dr-menu').children];
+      const i = list.indexOf(el);
+      const j = i + (e.keyCode === 40 ? 1 : -1);
+      if (j >= 0 && j < list.length) Nav.focus(list[j]);
+      return true;
+    }
     // Удерживать OK на папке — PIN-код на папку
     if (e.keyCode === 13 && el && el._g !== undefined && el.closest('#dr-groups')) {
       return holdOk(e, () => el.click(), () => groupMenu(el._g, el._pid, () => { openDrawer(); }));
