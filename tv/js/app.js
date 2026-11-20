@@ -246,7 +246,7 @@
   // ---------- Настройки: порядок как в Android (от главного к редкому) ----------
   const LANGS = [['en', 'English'], ['ru', 'Русский'], ['he', 'עברית'], ['fr', 'Français'], ['ar', 'العربية'],
     ['it', 'Italiano'], ['ja', '日本語'], ['ko', '한국어'], ['zh', '中文']];
-  const VERSION = '0.25';
+  const VERSION = '0.26';
   // Если телевизор даёт странице не 1920 точек в ширину, вся страница уменьшается под экран — ничего не обрезается
   (function fitScreen() {
     const k = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
@@ -534,13 +534,15 @@
   // Общее избранное всех плейлистов: каналы берутся из сохранённых списков каждого плейлиста
   let gfavCache = null;
   function allFavorites() {
+    // В том порядке, в котором избранное составлено (как в Android: общий список «плейлист|канал»)
     const f = Store.favorites();
-    const out = [];
+    const byKey = new Map();
     Store.playlists().filter(p => !p.off).forEach(p => {
-      const d = p.id === (pl && pl.id) ? { channels } : Store.channels(p.id);
-      noAdult(d && d.channels).forEach(c => { if (f.includes(p.id + '|' + c.name)) out.push(p.id === (pl && pl.id) ? c : Object.assign({ _pl: p.id }, c)); });
+      const mine = p.id === (pl && pl.id);
+      const d = mine ? { channels } : Store.channels(p.id);
+      noAdult(d && d.channels).forEach(c => { const k = p.id + '|' + c.name; if (!byKey.has(k)) byKey.set(k, mine ? c : Object.assign({ _pl: p.id }, c)); });
     });
-    return out;
+    return f.map(k => byKey.get(k)).filter(Boolean);
   }
   function inGroup(g) {
     if (g === GFAV) return gfavCache = allFavorites();
@@ -2023,8 +2025,9 @@
       box.appendChild(el);
     });
     if (!sideShown.length) { box.textContent = t('panel_empty'); sideEpg(null); }
-    const playing = shown[cur];
-    const idx = focusCurrent && playing ? sideShown.indexOf(playing) : 0;
+    // Курсор — на канале, который сейчас играет (если он есть в этой папке), иначе на первом
+    const playing = playingCh || shown[cur];
+    const idx = playing ? sideShown.findIndex(c => c === playing || (c.url === playing.url && c.name === playing.name)) : -1;
     Nav.focus(box.children[Math.max(0, idx)]);
   }
   function sidePlay(i, p) {
@@ -2524,6 +2527,18 @@
     } catch (e) { Store.addLog(new Date().toLocaleString(LANG) + ' — update on return\n' + (e && (e.message || e.name) || e)); }
   });
 
+  // Каналы остальных плейлистов скачиваются в фоне, если их ещё нет в памяти: общее избранное и папки
+  // плейлистов видят их каналы (например, сразу после переноса копии с Android)
+  async function preloadPlaylists() {
+    for (const p of Store.playlists().filter(x => !x.off)) {
+      if (Store.channels(p.id) || (pl && pl.id === p.id)) continue;
+      try {
+        Store.saveChannels(p.id, await M3U.load(p, t('no_group'), n => t('channel_n', n)));
+        if (group === GFAV && cur >= 0) { setShown(inGroup(GFAV)); if (!$('guide').classList.contains('hidden')) renderGuide(); }
+      } catch (e) { Store.addLog(new Date().toLocaleString(LANG) + ' — ' + p.name + '\n' + errorText(e)); }
+    }
+  }
+
   // ---------- Старт: открываем там, где закрыли ----------
   // Проверочная сборка на телевизоре Марка: при переустановке память программы стирается.
   // Если рядом с программой лежит dev.json (только в его копии на компьютере, в магазинную версию не входит),
@@ -2538,8 +2553,9 @@
     } catch (e) { }
   }
   // Как в Android: сразу играет последний канал; если его нет — телепрограмма; нет плейлистов — экран плейлистов
-  Promise.all([autoRestore().then(devPlaylists), new Promise(r => splash(r))]).then(() => new Promise(r => askAppPin(r))).then(() => {
+  Promise.all([Store.ready(), autoRestore().then(devPlaylists), new Promise(r => splash(r))]).then(() => new Promise(r => askAppPin(r))).then(() => {
     $('pin-cover').classList.add('hidden');
+    setTimeout(preloadPlaylists, 8000);
     const on = Store.playlists().filter(p => !p.off);
     const last = Store.last();
     const lastPl = last && on.find(p => p.id === last.pl) || on[0];

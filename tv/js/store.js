@@ -9,12 +9,45 @@ const Store = (() => {
     // Плейлисты, избранное, настройки изменились — автокопия в памяти телевизора (см. app.js)
     if (!/^(ch\.|log$|last$)/.test(k) && window.LupoAutosave) window.LupoAutosave();
   }
+  const chMem = new Map();
+  let dbp = null;
+  function openDb() {
+    if (!dbp) dbp = new Promise((res, rej) => {
+      const r = indexedDB.open('lupo-channels', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('ch');
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    });
+    return dbp;
+  }
+  function idb(mode, fn) {
+    return openDb().then(d => new Promise(res => {
+      const tx = d.transaction('ch', mode);
+      const out = fn(tx.objectStore('ch'));
+      tx.oncomplete = () => res(out && out.result);
+      tx.onerror = tx.onabort = () => res(null);
+    })).catch(() => null);
+  }
+  // Все сохранённые каналы — в память (вызывается один раз при запуске)
+  async function ready() {
+    try {
+      const d = await openDb();
+      await new Promise(res => {
+        const r = d.transaction('ch').objectStore('ch').openCursor();
+        r.onsuccess = () => { const c = r.result; if (!c) return res(); chMem.set(c.key, c.value); c.continue(); };
+        r.onerror = () => res();
+      });
+    } catch (e) { }
+  }
   return {
     playlists: () => get('playlists', []),
     savePlaylists: l => set('playlists', l),
-    channels: id => get('ch.' + id, null),
-    saveChannels: (id, data) => set('ch.' + id, data),
-    dropChannels: id => { try { localStorage.removeItem(K + 'ch.' + id); } catch (e) { } },
+    // Каналы плейлистов — в IndexedDB (в обычной памяти страницы всего ~5 МБ: несколько больших плейлистов
+    // туда не помещались, и общее избранное не видело каналы других плейлистов). Читаются в память при запуске (ready)
+    channels: id => chMem.has(id) ? chMem.get(id) : get('ch.' + id, null),
+    saveChannels: (id, data) => { chMem.set(id, data); idb('readwrite', st => st.put(data, id)); try { localStorage.removeItem(K + 'ch.' + id); } catch (e) { } },
+    dropChannels: id => { chMem.delete(id); idb('readwrite', st => st.delete(id)); try { localStorage.removeItem(K + 'ch.' + id); } catch (e) { } },
+    ready,
     favorites: () => get('fav', []),
     saveFavorites: l => set('fav', l),
     last: () => get('last', null),
