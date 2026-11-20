@@ -246,7 +246,7 @@
   // ---------- Настройки: порядок как в Android (от главного к редкому) ----------
   const LANGS = [['en', 'English'], ['ru', 'Русский'], ['he', 'עברית'], ['fr', 'Français'], ['ar', 'العربية'],
     ['it', 'Italiano'], ['ja', '日本語'], ['ko', '한국어'], ['zh', '中文']];
-  const VERSION = '0.33';
+  const VERSION = '0.34';
   // Если телевизор даёт странице не 1920 точек в ширину, вся страница уменьшается под экран — ничего не обрезается
   (function fitScreen() {
     const k = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
@@ -1401,7 +1401,7 @@
   function playerMenu() {
     const c = shown[cur];
     const items = [
-      { label: t('split_watch'), act: () => Player.canSplit ? splitPick() : doc(t('split_watch'), t('split_soon'), playerScope) },
+      ...(canSplit() ? [{ label: t('split_watch'), act: () => splitPick() }] : []),
       { label: t('audio_track'), act: openAudioMenu },
       { label: t('choose_subtitles'), act: openSubsMenu },
       { label: t('schedule_title'), act: () => c && openSchedule(c, playerScope) },
@@ -1777,11 +1777,12 @@
       if (my !== splitRun || split < 0) return;
       const st = Player.splitState();
       const right = st.find(x => x.i === 1);
-      const ok = right && right.time > 500 && (right.web || right.state === 'PLAYING');
+      const left = st.find(x => x.i === 0);
+      const good = x => x && x.time > 500 && (x.web ? x.pic !== false : x.state === 'PLAYING');
+      const ok = good(right) && good(left);
       Store.addLog(new Date().toLocaleString(LANG) + ' — ' + t('split_watch') + ' (' + splitMode + ')\n' + JSON.stringify(st));
       if (ok) return;
-      if (splitMode === 'multiview') { splitStart(splitList, split, 'web'); return; }
-      toast(t('split_watch') + ': ' + t('split_failed'));
+      splitGiveUp();
     }, 9000);
   }
   let splitCheck = null, splitRun = 0;
@@ -1811,10 +1812,17 @@
   Player.on('splitError', e => {
     if (split < 0) return;
     Store.addLog(new Date().toLocaleString(LANG) + ' — ' + t('split_watch') + ' (' + splitMode + ')\n' + (e && e.msg || e));
-    if (splitMode === 'multiview' && e && e.i === 1) { splitStart(splitList, split, 'web'); return; }
-    toast(t('split_watch') + ': ' + t('split_failed'));
-    splitEnd();
+    splitGiveUp();
   });
+  // Способ не дал двух картинок: пробуем следующий; не вышел ни один — этот телевизор два видео сразу
+  // не показывает. Запоминаем это, и пункт «Смотреть рядом» в меню больше не появляется
+  function splitGiveUp() {
+    if (splitMode === 'multiview') { splitStart(splitList, split, 'web2'); return; }
+    try { localStorage.setItem('lupo.noSplit', VERSION); } catch (e) { }
+    splitEnd();
+    doc(t('split_watch'), t('split_none'), playerScope);
+  }
+  function canSplit() { try { return !localStorage.getItem('lupo.noSplit'); } catch (e) { return true; } }
 
   // Размер картинки (удерживать OK на видео): по размеру, растянуть, увеличить — запоминается
   const SIZES = ['fit', 'stretch', 'zoom'];

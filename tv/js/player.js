@@ -256,11 +256,12 @@ const Player = (() => {
   //  2) 'web' — левый канал в родном плеере, правый — в браузерном (hls.js, без звука).
   // Звук — только у левого канала
   const store = (() => { try { return window.webapis && webapis.avplaystore ? webapis.avplaystore : null; } catch (e) { return null; } })();
-  let sp = [], splitWeb = null;
+  let sp = [], splitWeb = null, video2 = null;
   function splitStop() {
     sp.forEach(p => { try { p.stop(); } catch (e) { } try { p.close(); } catch (e) { } });
     sp = [];
     if (splitWeb) { try { splitWeb.destroy(); } catch (e) { } splitWeb = null; }
+    if (video2) { try { video2.remove(); } catch (e) { } video2 = null; }
     document.documentElement.classList.remove('split-web');
     video.muted = false;
     const s = video.style;
@@ -285,7 +286,7 @@ const Player = (() => {
   function splitState() {
     const out = [];
     sp.forEach((p, i) => { let st = '?', tm = -1; try { st = p.getState(); } catch (e) { } try { tm = p.getCurrentTime(); } catch (e) { } out.push({ i, state: st, time: tm }); });
-    if (document.documentElement.classList.contains('split-web')) out.push({ i: 1, state: 'video rs' + video.readyState + (video.error ? ' err' + video.error.code : ''), time: Math.round(video.currentTime * 1000), web: true });
+    if (video2) [video, video2].forEach((v, i) => out.push({ i, state: 'video rs' + v.readyState + (v.error ? ' err' + v.error.code : '') + ' ' + v.videoWidth + 'x' + v.videoHeight, time: Math.round(v.currentTime * 1000), web: true, pic: v.videoWidth > 0 }));
     return out;
   }
   function split(url1, url2, mode) {
@@ -294,22 +295,30 @@ const Player = (() => {
     const my = ++token;
     document.documentElement.classList.add('av-on');
     try {
-      if (mode === 'web') {
-        // Левый — родной плеер в левой половине, правый — <video> с hls.js в правой половине
-        const p = store ? store.getPlayer() : av;
-        sp.push(p);
-        avSplitPlayer(p, url1, 0, my, null);
+      if (mode === 'web2') {
+        // Оба канала в браузерных плеерах (hls.js): по правилам Samsung родной плеер и <video> вместе не играют,
+        // а два <video> на части моделей могут. Звук — у левого
+        document.documentElement.classList.remove('av-on');
         document.documentElement.classList.add('split-web');
-        const s = video.style;
-        s.position = 'absolute'; s.left = '960px'; s.top = '270px'; s.width = '960px'; s.height = '540px';
-        video.muted = true;
-        if (/m3u8/i.test(url2) && window.Hls && Hls.isSupported()) {
-          splitWeb = new Hls({ enableWorker: true, liveSyncDurationCount: 3 });
-          splitWeb.on(Hls.Events.ERROR, (ev, d) => { if (d.fatal && my === token) emit('splitError', { i: 1, msg: 'HLS: ' + (d.details || d.type) }); });
-          splitWeb.loadSource(url2);
-          splitWeb.attachMedia(video);
-        } else video.src = url2;
+        const mk = (el, u, x, i) => {
+          const st = el.style;
+          st.position = 'absolute'; st.left = x + 'px'; st.top = '270px'; st.width = '960px'; st.height = '540px'; st.background = '#000';
+          if (/m3u8/i.test(u) && window.Hls && Hls.isSupported()) {
+            const h = new Hls({ enableWorker: true, liveSyncDurationCount: 3, capLevelToPlayerSize: true });
+            h.on(Hls.Events.ERROR, (ev, d) => { if (d.fatal && my === token) emit('splitError', { i, msg: 'HLS: ' + (d.details || d.type) }); });
+            h.loadSource(u); h.attachMedia(el);
+            return h;
+          }
+          el.src = u;
+          return { destroy() { el.removeAttribute('src'); try { el.load(); } catch (e) { } } };
+        };
+        video2 = document.createElement('video');
+        video2.muted = true; video2.playsInline = true;
+        video.parentNode.insertBefore(video2, video.nextSibling);
+        const h1 = mk(video, url1, 0, 0), h2 = mk(video2, url2, 960, 1);
+        splitWeb = { destroy() { try { h1.destroy(); } catch (e) { } try { h2.destroy(); } catch (e) { } } };
         video.play().catch(() => { });
+        video2.play().catch(() => { });
         return;
       }
       [url1, url2].forEach((u, i) => {

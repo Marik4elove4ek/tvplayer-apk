@@ -264,7 +264,8 @@ const STRINGS = {
   "split_hint": "Экран пополам: ◀ ▶ — сторона и её звук, ▲ ▼ — канал, OK — список каналов, удержать OK — на весь экран, «Назад» — выход",
   "speed_finding": "Ищу серверы провайдера…",
   "speed_internet": "Интернет",
-  "speed_not_measured": "не измерено"
+  "speed_not_measured": "не измерено",
+  "split_none": "Этот телевизор не умеет показывать два видео одновременно. Пункт «Смотреть рядом» убран из меню."
  },
  "en": {
   "app_name": "Lupo Player",
@@ -530,7 +531,8 @@ const STRINGS = {
   "split_hint": "Split screen: ◀ ▶ — side and its sound, ▲ ▼ — channel, OK — channel list, hold OK — full screen, Back — exit",
   "speed_finding": "Looking for provider servers…",
   "speed_internet": "Internet",
-  "speed_not_measured": "not measured"
+  "speed_not_measured": "not measured",
+  "split_none": "This TV cannot show two videos at the same time. “Watch side by side” has been removed from the menu."
  },
  "he": {
   "app_name": "Lupo Player",
@@ -796,7 +798,8 @@ const STRINGS = {
   "split_hint": "מסך מפוצל: ◀ ▶ — צד והשמע שלו, ▲ ▼ — ערוץ, OK — רשימת ערוצים, החזקת OK — מסך מלא, חזרה — יציאה",
   "speed_finding": "מחפש את שרתי הספק…",
   "speed_internet": "אינטרנט",
-  "speed_not_measured": "לא נמדד"
+  "speed_not_measured": "לא נמדד",
+  "split_none": "הטלוויזיה הזו אינה יכולה להציג שני סרטונים בו־זמנית. האפשרות «צפייה זה לצד זה» הוסרה מהתפריט."
  },
  "ar": {
   "app_name": "Lupo Player",
@@ -1062,7 +1065,8 @@ const STRINGS = {
   "split_hint": "شاشة مقسومة: ◀ ▶ — الجانب وصوته، ▲ ▼ — القناة، OK — قائمة القنوات، اضغط مطولًا OK — ملء الشاشة، رجوع — خروج",
   "speed_finding": "جارٍ البحث عن خوادم المزوّد…",
   "speed_internet": "الإنترنت",
-  "speed_not_measured": "لم يتم القياس"
+  "speed_not_measured": "لم يتم القياس",
+  "split_none": "هذا التلفاز لا يستطيع عرض مقطعين في الوقت نفسه. تمت إزالة خيار «المشاهدة جنبًا إلى جنب» من القائمة."
  },
  "fr": {
   "app_name": "Lupo Player",
@@ -1328,7 +1332,8 @@ const STRINGS = {
   "split_hint": "Écran partagé : ◀ ▶ — côté et son, ▲ ▼ — chaîne, OK — liste des chaînes, OK maintenu — plein écran, Retour — quitter",
   "speed_finding": "Recherche des serveurs du fournisseur…",
   "speed_internet": "Internet",
-  "speed_not_measured": "non mesuré"
+  "speed_not_measured": "non mesuré",
+  "split_none": "Ce téléviseur ne peut pas afficher deux vidéos en même temps. « Regarder côte à côte » a été retiré du menu."
  },
  "it": {
   "app_name": "Lupo Player",
@@ -1594,7 +1599,8 @@ const STRINGS = {
   "split_hint": "Schermo diviso: ◀ ▶ — lato e audio, ▲ ▼ — canale, OK — elenco canali, tieni OK — schermo intero, Indietro — esci",
   "speed_finding": "Cerco i server del provider…",
   "speed_internet": "Internet",
-  "speed_not_measured": "non misurato"
+  "speed_not_measured": "non misurato",
+  "split_none": "Questo televisore non può mostrare due video contemporaneamente. «Guarda affiancati» è stato rimosso dal menu."
  },
  "ja": {
   "app_name": "Lupo Player",
@@ -1860,7 +1866,8 @@ const STRINGS = {
   "split_hint": "画面分割: ◀ ▶ — 画面と音声の切り替え、▲ ▼ — チャンネル、OK — チャンネル一覧、OK 長押し — 全画面、戻る — 終了",
   "speed_finding": "プロバイダーのサーバーを探しています…",
   "speed_internet": "インターネット",
-  "speed_not_measured": "未測定"
+  "speed_not_measured": "未測定",
+  "split_none": "このテレビは2つの映像を同時に表示できません。「並べて見る」はメニューから削除されました。"
  },
  "ko": {
   "app_name": "Lupo Player",
@@ -2126,7 +2133,8 @@ const STRINGS = {
   "split_hint": "화면 분할: ◀ ▶ — 화면과 소리 선택, ▲ ▼ — 채널, OK — 채널 목록, OK 길게 — 전체 화면, 뒤로 — 종료",
   "speed_finding": "제공업체 서버를 찾는 중…",
   "speed_internet": "인터넷",
-  "speed_not_measured": "측정 안 됨"
+  "speed_not_measured": "측정 안 됨",
+  "split_none": "이 TV는 두 영상을 동시에 표시할 수 없습니다. «나란히 보기»가 메뉴에서 제거되었습니다."
  },
  "zh": {
   "app_name": "Lupo Player",
@@ -2392,6 +2400,7 @@ const STRINGS = {
   "split_hint": "分屏：◀ ▶ — 选择画面及其声音，▲ ▼ — 频道，OK — 频道列表，长按 OK — 全屏，返回 — 退出",
   "speed_finding": "正在查找提供商服务器…",
   "speed_internet": "网络",
-  "speed_not_measured": "未测量"
+  "speed_not_measured": "未测量",
+  "split_none": "这台电视无法同时显示两个视频。“并排观看”已从菜单中移除。"
  }
 };
