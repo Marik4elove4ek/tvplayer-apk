@@ -83,6 +83,18 @@ const Player = (() => {
   video.addEventListener('error', () => { if ((!av || engineWeb) && !hls && !ts && video.error) emit('error', 'video: ' + (video.error.message || video.error.code)); });
   video.addEventListener('loadedmetadata', () => { if (!hls) emit('tracks'); });
   video.addEventListener('playing', () => { everPlayed = true; emit('playing'); });
+  // Родной плеер Samsung «застыл» молча (так бывает на радио: звук пропал, а плеер ни о чём не сообщает):
+  // время показа не идёт 8 секунд — сообщаем программе, она включит канал через запасной плеер
+  let avT = -1, avStuck = 0;
+  setInterval(() => {
+    if (!av || engineWeb || !playing || paused || sp.length || !everPlayed) { avStuck = 0; avT = -1; return; }
+    let t = -1, st = '';
+    try { t = av.getCurrentTime(); st = av.getState(); } catch (e) { return; }
+    if (st === 'PAUSED') { avStuck = 0; return; }
+    if (t !== avT) { avT = t; avStuck = 0; return; }
+    avStuck += 2;
+    if (avStuck >= 8) { avStuck = 0; avT = -1; emit('frozen'); }
+  }, 2000);
   // Браузерный плеер «застыл» (время не идёт): сначала подталкиваем к живому краю эфира, не помогло — эфир открывается заново
   let everPlayed = false, lastT = -1, stuck = 0;
   setInterval(() => {

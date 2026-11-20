@@ -246,7 +246,7 @@
   // ---------- Настройки: порядок как в Android (от главного к редкому) ----------
   const LANGS = [['en', 'English'], ['ru', 'Русский'], ['he', 'עברית'], ['fr', 'Français'], ['ar', 'العربية'],
     ['it', 'Italiano'], ['ja', '日本語'], ['ko', '한국어'], ['zh', '中文']];
-  const VERSION = '0.35';
+  const VERSION = '0.36';
   // Если телевизор даёт странице не 1920 точек в ширину, вся страница уменьшается под экран — ничего не обрезается
   (function fitScreen() {
     const k = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
@@ -1892,8 +1892,9 @@
     if (on) l.push(favKey(c));
     try { localStorage.setItem('lupo.webEngine', JSON.stringify(l.slice(-300))); } catch (e) { }
   }
+  const webFailed = new Set();   // каналы, которые запасной плеер не открыл (до выхода из программы к нему не возвращаемся)
   function toWebEngine(c, why) {
-    if (!Player.native || webEngine(c) || arch) return false;
+    if (!Player.native || webEngine(c) || arch || webFailed.has(favKey(c))) return false;
     setWeb(c, true);
     reconnects = [];
     Store.addLog(new Date().toLocaleString(LANG) + ' — ' + c.name + '\n' + why + ' → hls.js');
@@ -1964,6 +1965,12 @@
   });
 
   Player.on('error', playError);
+  // Родной плеер замер без сообщений — сразу запасной (если он этот канал умеет), иначе открываем заново
+  Player.on('frozen', () => {
+    const c = shown[cur];
+    if (!c || vod || split >= 0 || screen !== 'player') return;
+    if (!toWebEngine(c, 'AVPlay frozen')) reconnect('AVPlay frozen');
+  });
   function playError(msg) {
     $('pl-spinner').classList.add('hidden');
     if (vod) {
@@ -1975,7 +1982,14 @@
     const c = shown[cur];
     // Родной плеер не открыл канал — пробуем запасной движок; запасной тоже не смог — забываем его для канала
     if (c && split < 0 && toWebEngine(c, msg)) return;
-    if (c && webEngine(c) && Player.usingWeb() && !Player.everPlayed()) setWeb(c, false);
+    if (c && webEngine(c) && Player.usingWeb() && !Player.everPlayed()) {
+      // Запасной плеер канал не открыл — возвращаем канал родному плееру
+      setWeb(c, false);
+      webFailed.add(favKey(c));
+      Store.addLog(new Date().toLocaleString(LANG) + ' — ' + c.name + '\nhls.js: ' + msg + ' → AVPlay');
+      Player.start(streamUrl(c));
+      return;
+    }
     toast(t('play_error'));
     const d = new Date();
     Store.addLog(d.toLocaleDateString(LANG) + ' ' + hm(d) + ' — ' + (c ? c.name : '') + '\n' + msg + (c ? '\n' + c.url : ''));
