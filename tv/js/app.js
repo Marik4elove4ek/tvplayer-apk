@@ -246,7 +246,7 @@
   // ---------- Настройки: порядок как в Android (от главного к редкому) ----------
   const LANGS = [['en', 'English'], ['ru', 'Русский'], ['he', 'עברית'], ['fr', 'Français'], ['ar', 'العربية'],
     ['it', 'Italiano'], ['ja', '日本語'], ['ko', '한국어'], ['zh', '中文']];
-  const VERSION = '0.32';
+  const VERSION = '0.33';
   // Если телевизор даёт странице не 1920 точек в ширину, вся страница уменьшается под экран — ничего не обрезается
   (function fitScreen() {
     const k = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
@@ -1903,11 +1903,16 @@
     let text = await get(url);
     if (/#EXT-X-STREAM-INF/.test(text)) {
       const lines = text.split(/\r?\n/);
+      // Радио «только звук» кусочками AAC (так вещают Like FM, Авторадио, Energy и другие станции hostingradio):
+      // родной плеер на них замирает через 10–20 секунд — сразу браузерный
+      const inf = lines.filter(l => l.startsWith('#EXT-X-STREAM-INF'));
+      if (inf.length && inf.every(l => /CODECS="[^"]*mp4a/i.test(l) && !/avc|hvc|hev|vp0?9|av01/i.test(l))) return true;
       const i = lines.findIndex(l => l.startsWith('#EXT-X-STREAM-INF'));
       const uri = lines.slice(i + 1).find(x => x && !x.startsWith('#'));
       if (!uri) return false;
       text = await get(new URL(uri.trim(), url).href);
     }
+    if (/^[^#\s][^\s]*\.(aac|mp3)(\?|$)/im.test(text)) return true;
     const m = /#EXT-X-MEDIA-SEQUENCE:\s*(\d+)/.exec(text);
     return !!m && (m[1].length > 10 || Number(m[1]) > 2147483647);
   }
@@ -1923,7 +1928,7 @@
       if (my !== startToken) return;
       if (big) {
         setWeb(c, true);
-        Store.addLog(new Date().toLocaleString(LANG) + ' — ' + c.name + '\nEXT-X-MEDIA-SEQUENCE > 2³¹ → hls.js');
+        Store.addLog(new Date().toLocaleString(LANG) + ' — ' + c.name + '\nHLS audio / media sequence → hls.js');
       }
       Player.start(url, { web: webEngine(c) });
     });
