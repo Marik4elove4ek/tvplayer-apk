@@ -246,7 +246,7 @@
   // ---------- Настройки: порядок как в Android (от главного к редкому) ----------
   const LANGS = [['en', 'English'], ['ru', 'Русский'], ['he', 'עברית'], ['fr', 'Français'], ['ar', 'العربية'],
     ['it', 'Italiano'], ['ja', '日本語'], ['ko', '한국어'], ['zh', '中文']];
-  const VERSION = '0.28';
+  const VERSION = '0.29';
   // Если телевизор даёт странице не 1920 точек в ширину, вся страница уменьшается под экран — ничего не обрезается
   (function fitScreen() {
     const k = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
@@ -623,17 +623,34 @@
       const fresh = await M3U.load(p, t('no_group'), n => t('channel_n', n));
       Store.saveChannels(p.id, fresh);
       if (pl !== p) return;
-      if (!data) { setChannels(fresh); if (!$('guide').classList.contains('hidden')) { gi = 0; renderGuide(); if (cur < 0 || !Player.isPlaying()) previewInGuide(0); } }
+      if (!data) {
+        // Каналы скачаны впервые (сохранённых не было): включаем тот канал, на котором остановились, а не первый
+        setChannels(fresh);
+        const li = lastIndex();
+        if (wantAuto && li >= 0) { wantAuto = false; play(li); }
+        else if (!$('guide').classList.contains('hidden')) { gi = Math.max(0, li); renderGuide(); if (cur < 0 || !Player.isPlaying()) previewInGuide(gi); }
+      }
       else { channels = noAdult(fresh.channels); setShown(inGroup(group)); Epg.open(pl.id, fresh.epg || [], channels); }
     } catch (e) {
       if (!data && pl === p) toast(t('load_error') + ' ' + errorText(e));
     }
   }
+  // Номер канала, на котором остановились в прошлый раз (в открытой папке), или −1
+  let wantAuto = false;
+  function lastIndex() {
+    const last = Store.last();
+    if (!last || !pl || last.pl !== pl.id || !last.name) return -1;
+    let i = shown.findIndex(c => c.name === last.name && (!last.url || c.url === last.url));
+    if (i < 0) i = shown.findIndex(c => c.name === last.name);
+    return i;
+  }
   function setChannels(data) {
     channels = noAdult(data.channels);
     Epg.open(pl.id, data.epg || [], channels);
     const last = Store.last();
-    group = last && last.pl === pl.id && groupsOf(channels).includes(last.group) ? last.group : ALL;
+    group = last && last.pl === pl.id && (last.group === GFAV || groupsOf(channels).includes(last.group)) ? last.group : ALL;
+    // Остановились в папке, где этого канала уже нет (например, убрали из избранного) — открываем «Все каналы»
+    if (last && last.pl === pl.id && last.name && group !== ALL && !inGroup(group).some(c => c.name === last.name)) group = ALL;
     if (group === FAV && !inGroup(FAV).length) group = ALL;
     setShown(inGroup(group));
   }
@@ -651,9 +668,9 @@
     const fresh = !pl || pl.id !== p.id || data || !channels.length;
     if (fresh) loadPlaylist(p, data);
     if (fresh && pl && pl.id !== p.id) { Player.stop(); cur = -1; }
-    const last = Store.last();
-    const lastIdx = last && last.pl === p.id ? shown.findIndex(c => c.name === last.name) : -1;
+    const lastIdx = lastIndex();
     if (autoplay && lastIdx >= 0) { play(lastIdx); return; }
+    wantAuto = !!autoplay && !channels.length;   // каналы ещё скачиваются — включим последний канал, когда придут
     if (playingCh && cur < 0) {   // идущий канал из другой папки — открываем его папку
       const g = groupsOf(channels).find(x => x !== FAV && x !== ALL && x === playingCh.group);
       if (g && !GLOBAL(group)) { group = g; setShown(inGroup(g)); }
@@ -817,7 +834,7 @@
     startChannel(c, c.url);
     clearTimeout(retryTimer);
     retryTimer = setTimeout(() => { if (shown[cur] === c && !Player.isPlaying()) startChannel(c, c.url); }, 7000);
-    Store.saveLast({ pl: pl.id, group, name: c.name });
+    Store.saveLast({ pl: pl.id, group, name: c.name, url: c.url });
   }
   function playFromGuide(i) {
     const p = focusedProg();
@@ -1996,7 +2013,7 @@
     clearTimeout(retryTimer);
     const my = c;
     retryTimer = setTimeout(() => { if (shown[cur] === my && !Player.isPlaying()) startChannel(my, url); }, 7000);
-    Store.saveLast({ pl: pl.id, group, name: c.name });
+    Store.saveLast({ pl: pl.id, group, name: c.name, url: c.url });
     showBar();
   }
 
