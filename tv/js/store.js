@@ -64,6 +64,8 @@ const Store = (() => {
     channels: id => chMem.has(id) ? chMem.get(id) : get('ch.' + id, null),
     saveChannels: (id, data) => { chMem.set(id, data); idb('readwrite', st => st.put(data, id)); try { localStorage.removeItem(K + 'ch.' + id); } catch (e) { } },
     dropChannels: id => { chMem.delete(id); idb('readwrite', st => st.delete(id)); try { localStorage.removeItem(K + 'ch.' + id); } catch (e) { } },
+    // Каналы плейлистов, которых больше нет, из памяти убираются
+    pruneChannels: ids => { [...chMem.keys()].forEach(k => { if (!ids.includes(k)) { chMem.delete(k); idb('readwrite', st => st.delete(k)); } }); },
     ready,
     favorites: () => get('fav', []),
     saveFavorites: l => set('fav', l),

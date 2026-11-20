@@ -156,10 +156,27 @@ const Epg = (() => {
       r.onerror = () => rej(r.error);
     });
   }
+  // В память телевизора (её всего ~80 МБ на всё) кладётся короткая программа: от «3 часа назад» до «полутора суток
+  // вперёд», описания до 200 знаков. Полная (дни архива, 4 дня вперёд) живёт только пока Лупо открыт
   async function saveCache(id, map) {
     try {
+      const from = Date.now() - 3 * 3600e3, to = Date.now() + 36 * 3600e3;
+      const data = [];
+      map.forEach((list, k) => {
+        const l = list.filter(p => p.e > from && p.s < to).map(p => ({ s: p.s, e: p.e, t: p.t, d: (p.d || '').slice(0, 200) }));
+        if (l.length) data.push([k, l]);
+      });
       const d = await db();
-      d.transaction('epg', 'readwrite').objectStore('epg').put({ time: Date.now(), data: [...map] }, id);
+      d.transaction('epg', 'readwrite').objectStore('epg').put({ time: Date.now(), data }, id);
+    } catch (e) { }
+  }
+  // Убрать сохранённую программу плейлистов, которых больше нет (после восстановления копии у плейлистов новые номера)
+  async function prune(ids) {
+    try {
+      const d = await db();
+      const st = d.transaction('epg', 'readwrite').objectStore('epg');
+      const r = st.getAllKeys();
+      r.onsuccess = () => (r.result || []).forEach(k => { if (!ids.includes(k)) st.delete(k); });
     } catch (e) { }
   }
   async function readCache(id) {
@@ -190,7 +207,9 @@ const Epg = (() => {
     try {
       const cached = await readCache(playlistId);
       if (cached) { maps.set(playlistId, new Map(cached.data)); listeners.forEach(f => f()); }
-      if (!urls.length || (cached && Date.now() - cached.time < 6 * 3600e3)) return;
+      // Сохранённой хватает на 6 часов; каналам с архивом нужны прошлые дни — их программа качается при каждом запуске
+      const deep = channels.some(c => window.Catchup && Catchup.has(c));
+      if (!urls.length || (cached && !deep && Date.now() - cached.time < 6 * 3600e3)) return;
       const fresh = await load(urls, channels);
       try { localStorage.setItem('epgrep.' + playlistId, JSON.stringify(lastLoad)); } catch (e) { }
       if (fresh.size) { maps.set(playlistId, fresh); saveCache(playlistId, fresh); listeners.forEach(f => f()); }
@@ -210,5 +229,5 @@ const Epg = (() => {
     return i < 0 ? null : { cur: l[i], next: l[i + 1] || null };
   }
 
-  return { open, ensure, reload, lastReport, list, now, onChange: f => listeners.push(f), time };
+  return { prune, open, ensure, reload, lastReport, list, now, onChange: f => listeners.push(f), time };
 })();

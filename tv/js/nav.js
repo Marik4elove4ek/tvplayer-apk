@@ -68,6 +68,9 @@ const Nav = (() => {
     // Длинный текст (политика, журнал): ▲▼ листают
     if (el && el.classList.contains('doc-text') && (k === 38 || k === 40)) {
       e.preventDefault();
+      // Текст долистан до конца (или короткий) — ▼ переходит к кнопкам под ним («Очистить», «OK»)
+      const atEnd = el.scrollTop + el.clientHeight >= el.scrollHeight - 4;
+      if (k === 40 && atEnd && items().some(x => x !== el)) { move('down'); return; }
       el.scrollTop += (k === 40 ? 1 : -1) * el.clientHeight * 0.8;
       return;
     }

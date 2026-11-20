@@ -246,7 +246,7 @@
   // ---------- Настройки: порядок как в Android (от главного к редкому) ----------
   const LANGS = [['en', 'English'], ['ru', 'Русский'], ['he', 'עברית'], ['fr', 'Français'], ['ar', 'العربية'],
     ['it', 'Italiano'], ['ja', '日本語'], ['ko', '한국어'], ['zh', '中文']];
-  const VERSION = '0.36';
+  const VERSION = '0.37';
   // Если телевизор даёт странице не 1920 точек в ширину, вся страница уменьшается под экран — ничего не обрезается
   (function fitScreen() {
     const k = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
@@ -2764,6 +2764,10 @@
   // Как в Android: сразу играет последний канал; если его нет — телепрограмма; нет плейлистов — экран плейлистов
   Promise.all([Store.ready(), autoRestore().then(devPlaylists), new Promise(r => splash(r))]).then(() => new Promise(r => askAppPin(r))).then(() => {
     $('pin-cover').classList.add('hidden');
+    // Память телевизора мала: убираем каналы и программу плейлистов, которых уже нет
+    const ids = Store.playlists().map(p => p.id);
+    Store.pruneChannels(ids);
+    Epg.prune(ids);
     setTimeout(preloadPlaylists, 8000);
     const on = Store.playlists().filter(p => !p.off);
     const last = Store.last();
