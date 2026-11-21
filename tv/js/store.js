@@ -62,10 +62,12 @@ const Store = (() => {
     // Каналы плейлистов — в IndexedDB (в обычной памяти страницы всего ~5 МБ: несколько больших плейлистов
     // туда не помещались, и общее избранное не видело каналы других плейлистов). Читаются в память при запуске (ready)
     channels: id => chMem.has(id) ? chMem.get(id) : get('ch.' + id, null),
-    saveChannels: (id, data) => { chMem.set(id, data); idb('readwrite', st => st.put(data, id)); try { localStorage.removeItem(K + 'ch.' + id); } catch (e) { } },
+    // memOnly — только в память на время работы (когда места в телевизоре мало; см. «сторож памяти» в app.js)
+    saveChannels: (id, data, memOnly) => { chMem.set(id, data); if (memOnly) return; idb('readwrite', st => st.put(data, id)); try { localStorage.removeItem(K + 'ch.' + id); } catch (e) { } },
     dropChannels: id => { chMem.delete(id); idb('readwrite', st => st.delete(id)); try { localStorage.removeItem(K + 'ch.' + id); } catch (e) { } },
     // Каналы плейлистов, которых больше нет, из памяти убираются
-    pruneChannels: ids => { [...chMem.keys()].forEach(k => { if (!ids.includes(k)) { chMem.delete(k); idb('readwrite', st => st.delete(k)); } }); },
+    // keepMem — убрать только сохранённую копию: до выхода из программы каналы остаются в памяти
+    pruneChannels: (ids, keepMem) => { [...chMem.keys()].forEach(k => { if (!ids.includes(k)) { if (!keepMem) chMem.delete(k); idb('readwrite', st => st.delete(k)); } }); },
     ready,
     favorites: () => get('fav', []),
     saveFavorites: l => set('fav', l),

@@ -8,7 +8,7 @@ html, body { width: 100%; height: 100%; background: var(--bg); color: var(--text
   font-family: Roboto, "Segoe UI", Arial, sans-serif; overflow: hidden; }
 #app { width: 100%; height: 100%; }
 .hidden { display: none !important; }
-.screen { position: absolute; inset: 0; padding: 32px 40px 20px; display: flex; flex-direction: column;
+.screen { position: absolute; top: 0; right: 0; bottom: 0; left: 0; padding: 32px 40px 20px; display: flex; flex-direction: column;
   animation: appear .18s ease-out; }
 @keyframes appear { from { opacity: 0; transform: scale(.985); } to { opacity: 1; transform: none; } }
 
@@ -34,9 +34,6 @@ html, body { width: 100%; height: 100%; background: var(--bg); color: var(--text
 .row-item:focus { border-color: var(--accent); transform: scale(1.015); }
 .ri-name { font-size: 28px; font-weight: 700; }
 .ri-sub { color: var(--dim); font-size: 18px; grid-row: 2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ri-del { grid-row: 1 / span 2; grid-column: 2; align-self: center; color: var(--dim); font-size: 20px;
-  padding: 10px 20px; border-radius: 20px; border: 2px solid transparent; outline: none; }
-.ri-del:focus { border-color: #ff6b6b; color: #ff6b6b; }
 
 .tabs { display: flex; gap: 14px; margin: 26px 0 10px; }
 .tab.on { background: var(--accent); }
@@ -50,7 +47,6 @@ html, body { width: 100%; height: 100%; background: var(--bg); color: var(--text
 .row { display: flex; gap: 16px; margin-top: 26px; }
 .error { color: #ff6b6b; font-size: 22px; margin-top: 18px; white-space: pre-line; }
 
-.columns { flex: 1; display: flex; gap: 20px; min-height: 0; margin-top: 22px; }
 .groups { width: 30%; }
 .channels { flex: 1; }
 .grp { font-size: 24px; padding: 16px 22px; border-radius: 14px; margin-bottom: 6px; color: var(--dim);
@@ -120,11 +116,6 @@ html, body { width: 100%; height: 100%; background: var(--bg); color: var(--text
 .pick-item.on { color: var(--accent); }
 .pick-item:focus { border-color: var(--accent); background: var(--surface2); }
 .version { color: var(--dim); font-size: 20px; padding: 12px 10px; }
-.ri-edit { grid-row: 1 / span 2; grid-column: 2; align-self: center; color: var(--dim); font-size: 20px;
-  padding: 10px 20px; border-radius: 20px; border: 2px solid transparent; outline: none; }
-.ri-edit:focus { border-color: var(--accent); color: var(--text); }
-.row-item.has-edit { grid-template-columns: 1fr auto auto; }
-.row-item.has-edit .ri-del { grid-column: 3; }
 
 /* Родной плеер Samsung (AVPlay) рисует видео ПОД страницей — экран просмотра на это время прозрачный */
 #av { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
@@ -167,7 +158,7 @@ html.av-on #video { display: none; }
 .doc { background: var(--bg) !important; }
 
 /* ---------- Телепрограмма сеткой (как в Android) ---------- */
-.guide { position: absolute; inset: 0; z-index: 4; }
+.guide { position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 4; }
 .g-top { position: absolute; left: 40px; right: 40px; top: 30px; height: 405px; display: flex; gap: 30px; }
 .g-video { width: 720px; height: 405px; border-radius: 14px; border: 2px solid var(--stroke); flex: none;
   display: flex; align-items: center; justify-content: center; }
@@ -213,7 +204,6 @@ html.av-on #video { display: none; }
 .drawer { position: absolute; left: 0; top: 0; bottom: 0; display: flex; gap: 10px; padding: 30px 20px; z-index: 6;
   background: rgba(11,14,19,.97); animation: slide .2s ease-out; }
 .dr-menu, .dr-groups { width: 400px; }
-.dr-head { color: var(--accent); font-size: 20px; margin: 18px 10px 8px; }
 /* Список поверх видео: каналы | программа | описание */
 .side-epg { width: 520px; display: flex; flex-direction: column; min-height: 0; }
 .side-epg .list { flex: 1; }
@@ -273,7 +263,7 @@ html.av-on .screen:not(#scr-player) { background: var(--bg) !important; }
 #dr-menu { display: flex; flex-direction: column; justify-content: center; }
 #dr-menu .grp { font-size: 26px; padding: 18px 24px; }
 /* Тест скорости */
-.speed { position: fixed; inset: 0; z-index: 8; padding: 50px 90px; display: flex; flex-direction: column;
+.speed { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 8; padding: 50px 90px; display: flex; flex-direction: column;
   background: radial-gradient(1200px 700px at 30% 20%, #2a1f5c 0%, #10131f 55%, #0b0e13 100%); }
 .sp-title { font-size: 40px; font-weight: 900; }
 .sp-main { display: flex; gap: 70px; align-items: center; margin-top: 20px; }
@@ -332,7 +322,6 @@ html.av-on .screen:not(#scr-player) { background: var(--bg) !important; }
 /* 0.12: строки настроек и списков не выходят за край — длинный текст переносится, выделенная строка не обрезается справа */
 .list { padding: 8px 30px !important; }
 .row-item { grid-template-columns: minmax(0, 1fr) auto; }
-.row-item.has-edit { grid-template-columns: minmax(0, 1fr) auto auto; }
 .ri-name, .ri-sub { min-width: 0; overflow-wrap: anywhere; }
 .ri-sub { white-space: normal !important; }
 .screen > * { max-width: 100%; }
@@ -350,7 +339,7 @@ html.av-on .screen:not(#scr-player) { background: var(--bg) !important; }
 .vod-item:focus { border-color: var(--accent); transform: scale(1.05); background: var(--surface2); }
 .vod-pic { position: relative; aspect-ratio: 2 / 3; border-radius: 12px; background: var(--panel); overflow: hidden;
   display: flex; align-items: center; justify-content: center; font-size: 60px; font-weight: 900; color: var(--dim); }
-.vod-pic img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.vod-pic img { position: absolute; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
 .vod-name { font-size: 19px; font-weight: 700; margin-top: 8px; line-height: 1.25; max-height: 2.5em; overflow: hidden; unicode-bidi: plaintext; text-align: left; }
 .vod-meta { font-size: 16px; color: var(--dim); margin-top: 4px; }
 .vod-status { position: absolute; left: 0; right: 0; top: 46%; text-align: center; font-size: 28px; color: var(--dim); white-space: pre-line; padding: 0 200px; }
@@ -365,8 +354,8 @@ html.av-on .screen:not(#scr-player) { background: var(--bg) !important; }
 .vi-list { margin-top: 24px; overflow-y: auto; flex: 1; min-height: 0; scrollbar-width: none; }
 .vi-list .pick-item:focus { border-color: var(--accent); background: var(--surface2); }
 /* Радио */
-.radio { position: absolute; inset: 0; z-index: 0; background: #05070b; overflow: hidden; }
-#radio-bg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.radio { position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 0; background: #05070b; overflow: hidden; }
+#radio-bg { position: absolute; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%; }
 .radio-card { position: absolute; left: 0; right: 0; top: 50%; margin-top: -330px; display: flex; flex-direction: column; align-items: center; }
 .radio-logo { width: 380px; height: 380px; border-radius: 28px; overflow: hidden; display: flex; align-items: center; justify-content: center;
   font-size: 180px; color: rgba(255,255,255,.85); background: rgba(255,255,255,.06); }
@@ -375,11 +364,11 @@ html.av-on .screen:not(#scr-player) { background: var(--bg) !important; }
 .radio-song { font-size: 36px; margin-top: 16px; max-width: 1300px; text-align: center; text-shadow: 0 0 14px rgba(0,0,0,.7); unicode-bidi: plaintext; }
 .radio-artist { font-size: 28px; color: rgba(255,255,255,.8); margin-top: 8px; text-align: center; text-shadow: 0 0 14px rgba(0,0,0,.7); unicode-bidi: plaintext; }
 /* Заставка: логотип надувается, как пузырь */
-.splash { position: fixed; inset: 0; z-index: 20; background: var(--bg); display: flex; align-items: center; justify-content: center; transition: opacity .35s; }
+.splash { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 20; background: var(--bg); display: flex; align-items: center; justify-content: center; transition: opacity .35s; }
 .splash img { width: 260px; height: 260px; filter: drop-shadow(0 0 30px rgba(76,141,255,.6)); animation: bubble 1.3s cubic-bezier(.3,1.6,.5,1) both; }
 .splash.out { opacity: 0; }
 @keyframes bubble { 0% { transform: scale(.2); opacity: 0; } 55% { transform: scale(1.08); opacity: 1; } 75% { transform: scale(.97); } 100% { transform: scale(1); } }
-.pin-cover { position: fixed; inset: 0; z-index: 5; background: var(--bg); }
+.pin-cover { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 5; background: var(--bg); }
 /* Часы на экране */
 .clock { position: fixed; top: 30px; right: 60px; z-index: 8; font-size: 40px; font-weight: 800; color: #fff;
   text-shadow: 0 0 10px rgba(0,0,0,.8); pointer-events: none; }
@@ -400,3 +389,32 @@ html.av-on.split-web #video { display: block !important; background: #000; }
 .sp-row > div:first-child .h { font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sp-row .v { font-size: 24px; font-weight: 800; }
 .sp-servers { max-height: 330px !important; overflow-y: auto !important; scrollbar-width: none; }
+
+/* ---------- Старые телевизоры (LG до 2022 года, Samsung до 2021-го) ---------- */
+/* Их браузер не знает «gap» в строках и столбцах (flex) и «aspect-ratio». Класс no-gap ставит сама программа,
+   когда видит такой браузер; на новых телевизорах эти правила не действуют и ничего не меняют */
+.no-gap .top > :not(.hidden) ~ :not(.hidden) { -webkit-margin-start: 16px; }
+.no-gap .tabs > :not(.hidden) ~ :not(.hidden) { -webkit-margin-start: 14px; }
+.no-gap .row > :not(.hidden) ~ :not(.hidden) { -webkit-margin-start: 16px; }
+.no-gap .ch > :not(.hidden) ~ :not(.hidden) { -webkit-margin-start: 18px; }
+.no-gap .bar > :not(.hidden) ~ :not(.hidden) { -webkit-margin-start: 28px; }
+.no-gap .side > :not(.hidden) ~ :not(.hidden) { -webkit-margin-start: 16px; }
+.no-gap .ch-prog > :not(.hidden) ~ :not(.hidden) { -webkit-margin-start: 14px; }
+.no-gap .g-top > :not(.hidden) ~ :not(.hidden) { -webkit-margin-start: 30px; }
+.no-gap .g-ch > :not(.hidden) ~ :not(.hidden) { -webkit-margin-start: 12px; }
+.no-gap .drawer > :not(.hidden) ~ :not(.hidden) { -webkit-margin-start: 10px; }
+.no-gap .bar-bubbles > :not(.hidden) ~ :not(.hidden) { -webkit-margin-start: 10px; }
+.no-gap .bar-head > :not(.hidden) ~ :not(.hidden) { -webkit-margin-start: 16px; }
+.no-gap .bar-row > :not(.hidden) ~ :not(.hidden) { -webkit-margin-start: 18px; }
+.no-gap .sp-side > :not(.hidden) ~ :not(.hidden) { -webkit-margin-start: 90px; }
+.no-gap .vod-body > :not(.hidden) ~ :not(.hidden) { -webkit-margin-start: 24px; }
+.no-gap .vodinfo > :not(.hidden) ~ :not(.hidden) { -webkit-margin-start: 40px; }
+.no-gap .tile > :not(.hidden) ~ :not(.hidden) { margin-top: 10px; }
+.no-gap .bar-left > :not(.hidden) ~ :not(.hidden) { margin-top: 10px; }
+.no-gap .sp-main > :not(.hidden) ~ :not(.hidden) { margin-top: 10px; }
+.no-gap .sp-servers > :not(.hidden) ~ :not(.hidden) { margin-top: 10px; }
+@supports not (aspect-ratio: 1 / 1) {
+  .vod-pic { height: 0; padding-top: 150%; }
+  .vod-pic > * { position: absolute; top: 0; left: 0; }
+  .vi-pic { height: 600px; }
+}

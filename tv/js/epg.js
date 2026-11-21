@@ -158,7 +158,9 @@ const Epg = (() => {
   }
   // В память телевизора (её всего ~80 МБ на всё) кладётся сжатая программа: вперёд на полтора суток с описаниями
   // до 200 знаков, прошлые дни архива — без описаний. Полная живёт, только пока Лупо открыт
+  let tight = false;   // места в телевизоре мало: сохраняется программа только открытого плейлиста
   async function saveCache(id, map) {
+    if (tight && id !== current) return;
     try {
       const from = Date.now() - 3 * 3600e3, to = Date.now() + 36 * 3600e3;
       const data = [];
@@ -197,21 +199,29 @@ const Epg = (() => {
     if (!urls.length) return;
     const fresh = await load(urls, channels);
     try { localStorage.setItem('epgrep.' + playlistId, JSON.stringify(lastLoad)); } catch (e) { }
-    if (fresh.size) { maps.set(playlistId, fresh); saveCache(playlistId, fresh); listeners.forEach(f => f()); }
+    if (fresh.size) { maps.set(playlistId, fresh); fetched.set(playlistId, Date.now()); saveCache(playlistId, fresh); listeners.forEach(f => f()); }
   }
   function lastReport(playlistId) { try { return JSON.parse(localStorage.getItem('epgrep.' + playlistId)); } catch (e) { return null; } }
 
   // Программа плейлиста: сохранённая — сразу, свежая (если сохранённой больше 6 часов) — в фоне
+  const fetched = new Map();   // плейлист → когда его программа получена
   async function ensure(playlistId, urls, channels) {
     if (loading.has(playlistId)) return;
+    // Программа этого плейлиста уже в памяти и свежая — не читаем и не скачиваем её заново при каждом обращении
+    if (maps.has(playlistId) && Date.now() - (fetched.get(playlistId) || 0) < 6 * 3600e3) return;
     loading.add(playlistId);
     try {
       const cached = await readCache(playlistId);
-      if (cached) { maps.set(playlistId, new Map(cached.data)); listeners.forEach(f => f()); }
+      if (cached) { maps.set(playlistId, new Map(cached.data)); fetched.set(playlistId, cached.time); listeners.forEach(f => f()); }
       if (!urls.length || (cached && Date.now() - cached.time < 6 * 3600e3)) return;
       const fresh = await load(urls, channels);
       try { localStorage.setItem('epgrep.' + playlistId, JSON.stringify(lastLoad)); } catch (e) { }
-      if (fresh.size) { maps.set(playlistId, fresh); saveCache(playlistId, fresh); listeners.forEach(f => f()); }
+      if (fresh.size) { maps.set(playlistId, fresh); fetched.set(playlistId, Date.now()); saveCache(playlistId, fresh); listeners.forEach(f => f()); }
+      else {
+        // Не скачалась — следующая попытка не раньше чем через 10 минут (а не при каждом обращении)
+        if (!maps.has(playlistId)) maps.set(playlistId, new Map());
+        fetched.set(playlistId, Date.now() - 6 * 3600e3 + 600e3);
+      }
     } finally { loading.delete(playlistId); }
   }
   // Открыт плейлист: его программа — главная
@@ -228,5 +238,10 @@ const Epg = (() => {
     return i < 0 ? null : { cur: l[i], next: l[i + 1] || null };
   }
 
-  return { prune, open, ensure, reload, lastReport, list, now, onChange: f => listeners.push(f), time };
+  // Плейлист изменили (другой адрес): его сохранённая программа больше не подходит
+  async function forget(id) {
+    maps.delete(id); fetched.delete(id);
+    try { const d = await db(); d.transaction('epg', 'readwrite').objectStore('epg').delete(id); } catch (e) { }
+  }
+  return { prune, forget, setTight: on => { tight = !!on; }, open, ensure, reload, lastReport, list, now, onChange: f => listeners.push(f) };
 })();

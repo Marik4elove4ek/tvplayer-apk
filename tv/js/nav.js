@@ -77,6 +77,7 @@ const Nav = (() => {
     if (DIR[k]) { e.preventDefault(); move(DIR[k]); }
     else if (k === 13 && el && el.classList.contains('focusable')) {
       e.preventDefault();
+      if (e.repeat) return;   // OK держат (меню по удержанию уже открылось) — повторы не нажимают его первый пункт
       // OK на рамке поля — открыть клавиатуру телевизора
       const input = el.classList.contains('fbox') && el.querySelector('input');
       if (input) { input.focus(); try { input.click(); } catch (x) { } }
@@ -86,6 +87,7 @@ const Nav = (() => {
 
   return {
     setScope(el, back, key) { scope = el; onBack = back; onKey = key || null; },
+    scope: () => scope,
     // Вернуться туда, где был пульт (после вопроса «Да/Отмена»)
     state() { const s = scope, b = onBack, k = onKey, f = document.activeElement; return () => { scope = s; onBack = b; onKey = k; focus(f); }; },
     focus, first() { focus(items()[0]); }

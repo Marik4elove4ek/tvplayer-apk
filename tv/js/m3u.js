@@ -1,4 +1,31 @@
 // Разбор плейлистов M3U и загрузка Xtream Codes (то же, что в Android-версии, Data.kt)
+// LG (webOS): программа открыта с телевизора как файл, и на части моделей fetch не читает адреса в интернете
+// или свои файлы. Тогда тот же запрос повторяется по-старому (XMLHttpRequest) — остальной код этого не замечает
+(function () {
+  if (!/Web0S|webOS/i.test(navigator.userAgent) || !window.fetch || window._lupoFetch) return;
+  const real = window._lupoFetch = window.fetch.bind(window);
+  window.fetch = function (url, opts) {
+    return real(url, opts).catch(err => {
+      if (typeof url !== 'string' || (opts && opts.method && opts.method !== 'GET')) throw err;
+      if (opts && opts.signal && opts.signal.aborted) throw err;
+      return new Promise((res, rej) => {
+        const x = new XMLHttpRequest();
+        x.open('GET', url);
+        x.responseType = 'arraybuffer';
+        x.onload = () => {
+          try {
+            const r = new Response(x.response, { status: x.status >= 200 && x.status <= 599 ? x.status : 200 });
+            try { Object.defineProperty(r, 'url', { value: x.responseURL || url }); } catch (e) { }
+            res(r);
+          } catch (e) { rej(err); }
+        };
+        x.onerror = x.ontimeout = () => rej(err);
+        if (opts && opts.signal) opts.signal.addEventListener('abort', () => { try { x.abort(); } catch (e) { } rej(err); });
+        x.send();
+      });
+    });
+  };
+})();
 const M3U = (() => {
   const ATTR = /([\w-]+)="([^"]*)"/g;
   const STREAM = /^\s*[A-Za-z][A-Za-z0-9+.\-]*:\/\//;

@@ -6,9 +6,12 @@ const Player = (() => {
   const avBox = document.getElementById('av');
   const subBox = document.getElementById('subs');
   const av = (() => { try { return window.webapis && webapis.avplay ? webapis.avplay : null; } catch (e) { return null; } })();
+  // LG (webOS): телевизор сам играет эфир HLS и потоки .ts прямо в <video> — это его «родной» плеер (легче для
+  // телевизора, чем hls.js). Не справился с каналом — программа включает запасной (hls.js / mpegts.js), как на Samsung
+  const lg = !av && /Web0S|webOS/i.test(navigator.userAgent);
   const handlers = {};
   let hls = null, ts = null, token = 0, avSub = -1, buffer = 'medium', rect = null;
-  let playing = false;
+  let playing = false, avBuf = false;
 
   // Окно видео: null — весь экран; иначе {x, y, w, h} в точках экрана 1920×1080 (видео в окне при телепрограмме)
   function setRect(r) {
@@ -19,6 +22,8 @@ const Player = (() => {
     if (av && playing) { try { av.setDisplayRect(r ? r.x : 0, r ? r.y : 0, r ? r.w : 1920, r ? r.h : 1080); } catch (e) { } }
   }
 
+  // Поток не открылся или оборвался с ошибкой: плеер больше не считается играющим
+  function fail(msg) { playing = false; emit('error', msg); }
   function emit(name, arg) { (handlers[name] || []).forEach(f => { try { f(arg); } catch (e) { } }); }
   function on(name, f) { (handlers[name] = handlers[name] || []).push(f); }
   function showSub(text) { subBox.textContent = text || ''; subBox.classList.toggle('hidden', !text); }
@@ -30,6 +35,7 @@ const Player = (() => {
   function stop() {
     token++;
     playing = false;
+    avBuf = false;
     showSub('');
     splitStop();
     if (av) { try { av.stop(); } catch (e) { } try { av.close(); } catch (e) { } }
@@ -48,8 +54,16 @@ const Player = (() => {
     const my = ++token;
     paused = false;
     everPlayed = false;
-    engineWeb = !!(opts && opts.web) || !av;
+    engineWeb = !!(opts && opts.web) || !(av || lg);
     if (av && !engineWeb) return startAv(url, my);
+    if (lg && !engineWeb) {
+      video.src = url;
+      playing = true;
+      video.play().catch(() => { });
+      // Эфир так и не пошёл (и ошибки нет) — сообщаем, программа включит запасной плеер. Фильмы ждём дольше — им можно
+      if (!/\.(mp4|mkv|avi|mov|m4v|webm)(\?|$)|\/(movie|series)\//i.test(url)) setTimeout(() => { if (my === token && !everPlayed) fail('video: no picture in 12 s'); }, 12000);
+      return;
+    }
     const isHls = /m3u8/i.test(url);
     const isTs = !isHls && (/\.ts(\?|$)/i.test(url) || /\/live\/[^/]+\/[^/]+\/\d+(\?|$)/i.test(url));
     const sec = BUF[buffer];
@@ -57,13 +71,14 @@ const Player = (() => {
       hls = new Hls({ liveSyncDurationCount: Math.max(2, Math.round(sec / 2)), maxBufferLength: sec * 6, enableWorker: true,
         startFragPrefetch: true, manifestLoadingMaxRetry: 4, levelLoadingMaxRetry: 6, fragLoadingMaxRetry: 8, nudgeMaxRetry: 10 });
       let netRetries = 0;
+      hls.on(Hls.Events.FRAG_LOADED, () => { netRetries = 0; });
       hls.subtitleDisplay = true;
       hls.on(Hls.Events.ERROR, (ev, d) => {
         if (!d.fatal) return;
         if (d.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
         // Сеть моргнула — продолжаем загрузку сами (до пяти раз подряд), а не показываем ошибку
         else if (d.type === Hls.ErrorTypes.NETWORK_ERROR && everPlayed && netRetries++ < 5) setTimeout(() => { if (my === token && hls) hls.startLoad(); }, 1000);
-        else emit('error', 'HLS: ' + (d.details || d.type) + (d.response && d.response.code ? ' (' + d.response.code + ')' : ''));
+        else fail('HLS: ' + (d.details || d.type) + (d.response && d.response.code ? ' (' + d.response.code + ')' : ''));
       });
       hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, () => emit('tracks'));
       hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, () => emit('tracks'));
@@ -71,7 +86,7 @@ const Player = (() => {
       hls.attachMedia(video);
     } else if (isTs && window.mpegts && mpegts.isSupported()) {
       ts = mpegts.createPlayer({ type: 'mpegts', isLive: true, url }, { enableWorker: true, liveBufferLatencyChasing: true });
-      ts.on(mpegts.Events.ERROR, (type, detail) => emit('error', 'TS: ' + type + ' ' + (detail || '')));
+      ts.on(mpegts.Events.ERROR, (type, detail) => fail('TS: ' + type + ' ' + (detail || '')));
       ts.attachMediaElement(video);
       ts.load();
     } else {
@@ -80,16 +95,18 @@ const Player = (() => {
     playing = true;
     video.play().catch(() => { });
   }
-  video.addEventListener('error', () => { if ((!av || engineWeb) && !hls && !ts && video.error) emit('error', 'video: ' + (video.error.message || video.error.code)); });
+  video.addEventListener('error', () => { if ((!av || engineWeb) && !hls && !ts && video.error) fail('video: ' + (video.error.message || video.error.code)); });
   video.addEventListener('loadedmetadata', () => { if (!hls) emit('tracks'); });
-  video.addEventListener('playing', () => { everPlayed = true; emit('playing'); });
+  video.addEventListener('playing', () => { everPlayed = true; if (lg && avBuf) { avBuf = false; emit('buffering', false); } emit('playing'); });
+  video.addEventListener('waiting', () => { if (lg && !engineWeb && playing && everPlayed) { avBuf = true; emit('buffering', true); } });
   // Родной плеер Samsung «застыл» молча (так бывает на радио: звук пропал, а плеер ни о чём не сообщает):
   // время показа не идёт 8 секунд — сообщаем программе, она включит канал через запасной плеер
   let avT = -1, avStuck = 0;
   setInterval(() => {
-    if (!av || engineWeb || !playing || paused || sp.length || !everPlayed) { avStuck = 0; avT = -1; return; }
+    // Пока плеер сам сообщает «подгружаю», это не «замер»: за долгой подгрузкой следит программа (15 с)
+    if (!(av || lg) || engineWeb || !playing || paused || sp.length || !everPlayed || avBuf) { avStuck = 0; avT = -1; return; }
     let t = -1, st = '';
-    try { t = av.getCurrentTime(); st = av.getState(); } catch (e) { return; }
+    try { if (av) { t = av.getCurrentTime(); st = av.getState(); } else { t = video.currentTime; st = video.paused || video.ended ? 'PAUSED' : ''; } } catch (e) { return; }
     if (st === 'PAUSED') { avStuck = 0; return; }
     if (t !== avT) { avT = t; avStuck = 0; return; }
     avStuck += 2;
@@ -119,22 +136,22 @@ const Player = (() => {
       try { av.setBufferingParam('PLAYER_BUFFER_FOR_PLAY', 'PLAYER_BUFFER_SIZE_IN_SECOND', BUF[buffer]); } catch (e) { }
       try { av.setBufferingParam('PLAYER_BUFFER_FOR_RESUME', 'PLAYER_BUFFER_SIZE_IN_SECOND', Math.max(8, BUF[buffer] * 2)); } catch (e) { }
       av.setListener({
-        onbufferingstart() { if (my === token) emit('buffering', true); },
-        onbufferingcomplete() { if (my === token) emit('buffering', false); },
+        onbufferingstart() { if (my === token) { avBuf = true; emit('buffering', true); } },
+        onbufferingcomplete() { if (my === token) { avBuf = false; emit('buffering', false); } },
         onstreamcompleted() { if (my === token) emit('ended'); },
-        onerror(e) { if (my === token) emit('error', 'AVPlay: ' + e); },
+        onerror(e) { if (my === token) fail('AVPlay: ' + e); },
         onsubtitlechange(duration, text) { if (my === token && avSub >= 0) showSub(text); },
         onevent() { }
       });
       av.prepareAsync(() => {
         if (my !== token) return;
-        try { av.play(); playing = true; everPlayed = true; } catch (e) { emit('error', 'AVPlay play: ' + (e.message || e.name || e)); return; }
+        try { av.play(); playing = true; everPlayed = true; } catch (e) { fail('AVPlay play: ' + (e.message || e.name || e)); return; }
         emit('playing');
         // Дорожки доступны только во время показа
         setTimeout(() => { if (my === token) emit('tracks'); }, 600);
-      }, e => { if (my === token) emit('error', 'AVPlay: ' + (e && (e.message || e.name) || e)); });
+      }, e => { if (my === token) fail('AVPlay: ' + (e && (e.message || e.name) || e)); });
     } catch (e) {
-      emit('error', 'AVPlay: ' + (e.message || e.name || e));
+      fail('AVPlay: ' + (e.message || e.name || e));
     }
   }
   function avInfo(x) {
@@ -219,7 +236,7 @@ const Player = (() => {
   // На Samsung звук выдаёт сам телевизор (AVPlay) — там это делает его собственная «Автогромкость»
   let ac = null, comp = null, src = null;
   function setLeveler(on) {
-    if (av) return;
+    if (av || lg) return;   // на телевизорах звук выдаёт сам телевизор — там его «Автогромкость»
     try {
       if (on && !ac) {
         ac = new (window.AudioContext || window.webkitAudioContext)();
@@ -343,5 +360,5 @@ const Player = (() => {
     }
   }
 
-  return { everPlayed: () => everPlayed, splitState, usingWeb: () => engineWeb, pause, pos, duration, seekTo, setSize, isPaused: () => paused, split, splitStop, canSplit: !!(av && store), setLeveler, info, start, stop, on, audioTracks, setAudio, subTracks, setSub, setBuffer, setRect, isPlaying: () => playing, native: !!av };
+  return { av: !!av, lg, everPlayed: () => everPlayed, splitState, usingWeb: () => engineWeb, pause, pos, duration, seekTo, setSize, isPaused: () => paused, split, splitStop, setLeveler, info, start, stop, on, audioTracks, setAudio, subTracks, setSub, setBuffer, setRect, isPlaying: () => playing, native: !!av || lg };
 })();
