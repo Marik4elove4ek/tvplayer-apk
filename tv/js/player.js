@@ -49,6 +49,16 @@ const Player = (() => {
   // web — играть через браузер (hls.js / mpegts.js) даже на Samsung: запасной движок для потоков,
   // с которыми родной плеер не справляется (часть радио HLS обрывается через 10–20 секунд)
   let engineWeb = false;
+  // Формат потока без «m3u8» в адресе: догадка по адресу и память о том, что подошло (localStorage lupo.fmt)
+  let guessedFmt = null;
+  function fmtGet(u) { try { const v = JSON.parse(localStorage.getItem('lupo.fmt') || '{}')[u]; return v === 'hls' || v === 'ts' ? v : null; } catch (e) { return null; } }
+  function fmtSet(u, v) { try { const m = JSON.parse(localStorage.getItem('lupo.fmt') || '{}'); if (m[u] === v) return; m[u] = v; const k = Object.keys(m); if (k.length > 600) delete m[k[0]]; localStorage.setItem('lupo.fmt', JSON.stringify(m)); } catch (e) { } }
+  function fmtGuessHls(u) {
+    const path = String(u).split('|')[0].split('?')[0].split('#')[0].replace(/\/+$/, '');
+    if (!/^https?:/i.test(path)) return false;
+    if (/\.[A-Za-z0-9]{2,4}$/.test(path.split('/').pop())) return false;
+    return !/\/(movie|series)\/|\/live\/[^/]+\/[^/]+\/\d+$/i.test(path);
+  }
   function start(url, opts) {
     stop();
     const my = ++token;
@@ -64,8 +74,12 @@ const Player = (() => {
       if (!/\.(mp4|mkv|avi|mov|m4v|webm)(\?|$)|\/(movie|series)\//i.test(url)) setTimeout(() => { if (my === token && !everPlayed) fail('video: no picture in 12 s'); }, 12000);
       return;
     }
-    const isHls = /m3u8/i.test(url);
-    const isTs = !isHls && (/\.ts(\?|$)/i.test(url) || /\/live\/[^/]+\/[^/]+\/\d+(\?|$)/i.test(url));
+    // Адрес без «m3u8» и без расширения (ritsatv.ru/oklive2/…) — почти всегда HLS: пробуем сразу его, а не после ошибки.
+    // Запомненный формат канала (что подошло раньше) — первым; не подошёл HLS — один раз пробуем как MPEG-TS
+    const mem = fmtGet(url);
+    guessedFmt = !/m3u8/i.test(url) && (mem === 'hls' || (!mem && fmtGuessHls(url))) ? url : null;
+    const isHls = /m3u8/i.test(url) || mem === 'hls' || (!mem && fmtGuessHls(url));
+    const isTs = !isHls && (mem === 'ts' || /\.ts(\?|$)/i.test(url) || /\/live\/[^/]+\/[^/]+\/\d+(\?|$)/i.test(url));
     const sec = BUF[buffer];
     if (isHls && window.Hls && Hls.isSupported()) {
       hls = new Hls({ liveSyncDurationCount: Math.max(2, Math.round(sec / 2)), maxBufferLength: sec * 6, enableWorker: true,
@@ -78,6 +92,7 @@ const Player = (() => {
         if (d.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
         // Сеть моргнула — продолжаем загрузку сами (до пяти раз подряд), а не показываем ошибку
         else if (d.type === Hls.ErrorTypes.NETWORK_ERROR && everPlayed && netRetries++ < 5) setTimeout(() => { if (my === token && hls) hls.startLoad(); }, 1000);
+        else if (guessedFmt === url && !everPlayed) { fmtSet(url, 'ts'); start(url, opts); }
         else fail('HLS: ' + (d.details || d.type) + (d.response && d.response.code ? ' (' + d.response.code + ')' : ''));
       });
       hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, () => emit('tracks'));
@@ -97,7 +112,7 @@ const Player = (() => {
   }
   video.addEventListener('error', () => { if ((!av || engineWeb) && !hls && !ts && video.error) fail('video: ' + (video.error.message || video.error.code)); });
   video.addEventListener('loadedmetadata', () => { if (!hls) emit('tracks'); });
-  video.addEventListener('playing', () => { everPlayed = true; if (lg && avBuf) { avBuf = false; emit('buffering', false); } emit('playing'); });
+  video.addEventListener('playing', () => { everPlayed = true; if (guessedFmt && hls) fmtSet(guessedFmt, 'hls'); if (lg && avBuf) { avBuf = false; emit('buffering', false); } emit('playing'); });
   video.addEventListener('waiting', () => { if (lg && !engineWeb && playing && everPlayed) { avBuf = true; emit('buffering', true); } });
   // Родной плеер Samsung «застыл» молча (так бывает на радио: звук пропал, а плеер ни о чём не сообщает):
   // время показа не идёт 8 секунд — сообщаем программе, она включит канал через запасной плеер
