@@ -59,7 +59,22 @@ const Player = (() => {
     if (/\.[A-Za-z0-9]{2,4}$/.test(path.split('/').pop())) return false;
     return !/\/(movie|series)\/|\/live\/[^/]+\/[^/]+\/\d+$/i.test(path);
   }
+  // User-Agent канала (из адреса «…|User-Agent=…»): родной плеер Samsung передаёт его сайту
+  let nextUa = '';
+  function setUa(u) { nextUa = u || ''; }
+  // Защита от бесконечных попыток: один и тот же адрес больше 6 раз за 90 секунд не открываем —
+  // каждая попытка занимает память телевизора, и он выкидывает программу
+  const tries = {};
+  function tooMany(url) {
+    const now = Date.now(), l = (tries[url] = (tries[url] || []).filter(x => now - x < 90000));
+    if (l.length >= 6) return true;
+    l.push(now);
+    const k = Object.keys(tries);
+    if (k.length > 50) delete tries[k[0]];
+    return false;
+  }
   function start(url, opts) {
+    if (tooMany(url)) { stop(); playing = false; emit('giveup', url); return; }
     stop();
     const my = ++token;
     paused = false;
@@ -144,6 +159,7 @@ const Player = (() => {
     document.documentElement.classList.add('av-on');
     try {
       av.open(url);
+      if (nextUa) { try { av.setStreamingProperty('USER_AGENT', nextUa); } catch (e) { } }
       av.setDisplayRect(rect ? rect.x : 0, rect ? rect.y : 0, rect ? rect.w : 1920, rect ? rect.h : 1080);
       applySize();
       // Запас перед началом и после «подгрузки»: у Samsung по умолчанию после подгрузки всего ~4 с —
@@ -375,5 +391,5 @@ const Player = (() => {
     }
   }
 
-  return { av: !!av, lg, everPlayed: () => everPlayed, splitState, usingWeb: () => engineWeb, pause, pos, duration, seekTo, setSize, isPaused: () => paused, split, splitStop, setLeveler, info, start, stop, on, audioTracks, setAudio, subTracks, setSub, setBuffer, setRect, isPlaying: () => playing, native: !!av || lg };
+  return { av: !!av, lg, everPlayed: () => everPlayed, splitState, usingWeb: () => engineWeb, pause, pos, duration, seekTo, setSize, isPaused: () => paused, split, splitStop, setLeveler, info, start, setUa, stop, on, audioTracks, setAudio, subTracks, setSub, setBuffer, setRect, isPlaying: () => playing, native: !!av || lg };
 })();

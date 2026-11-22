@@ -249,7 +249,7 @@
   // ---------- Настройки: порядок как в Android (от главного к редкому) ----------
   const LANGS = [['en', 'English'], ['ru', 'Русский'], ['he', 'עברית'], ['fr', 'Français'], ['ar', 'العربية'],
     ['it', 'Italiano'], ['ja', '日本語'], ['ko', '한국어'], ['zh', '中文']];
-  const VERSION = '0.42';
+  const VERSION = '0.48';
   // Если телевизор даёт странице не 1920 точек в ширину, вся страница уменьшается под экран — ничего не обрезается
   // Старый браузер телевизора не знает «gap» в строках (flex) — включаем запасные отступы (см. конец app.css)
   (function flexGap() {
@@ -310,7 +310,6 @@
       Player.native ? ['vol', t('st_volume_level'), t('legal_open'), () => doc(t('st_volume_level'), t(Player.lg ? 'volume_lg_note' : 'volume_tv_note'), again('vol'))]
         : ['vol', t('st_volume_level'), t(Store.leveler() ? 'on' : 'off'), () => { Store.saveLeveler(!Store.leveler()); applyLook(); openSettings('vol'); }],
       ['parental', t('st_parental'), t(Store.parental() ? 'on' : 'off'), () => chooseParental(again('parental'))],
-      ['apppin', t('pin_button'), t(Store.appPin() ? 'pin_on' : 'pin_off'), () => appPinSettings(again('apppin'))],
       ['backup', t('set_backup'), t('st_backup_value'), () => pick(t('set_backup'), [{ label: t('backup_save') }, { label: t('backup_restore') }],
         // LG не даёт программам доступ к файлам — честно говорим об этом, а не «сохраняем» в никуда
         i => (Player.lg ? doc(t('set_backup'), t('backup_tv_none'), again('backup')) : i === 0 ? saveBackup() : restoreBackup()), again('backup'))],
@@ -682,7 +681,7 @@
         setChannels(fresh);
         const li = lastIndex();
         if (wantAuto && li >= 0 && screen === 'player' && !needsPin(shown[li])) { wantAuto = false; play(li); }
-        else if (!$('guide').classList.contains('hidden')) { gi = Math.max(0, li); renderGuide(); if (cur < 0 || !Player.isPlaying()) previewInGuide(gi); }
+        else if (!$('guide').classList.contains('hidden')) { gi = Math.max(0, li); renderGuide(); if (jumped ? !Player.isPlaying() : (cur < 0 || !Player.isPlaying())) previewInGuide(gi); }
       }
       else { channels = noAdult(fresh.channels); setShown(inGroup(group)); Epg.open(pl.id, fresh.epg || [], channels); }
     } catch (e) {
@@ -703,6 +702,14 @@
     channels = noAdult(data.channels);
     Epg.open(pl.id, data.epg || [], channels);
     const last = Store.last();
+    if (wantGroup && wantGroup.pl === pl.id) {
+      // Папку выбрали в списке папок — открываем именно её, канал при этом не трогаем
+      group = wantGroup.g === GFAV || wantGroup.g === FAV || wantGroup.g === ALL || groupsOf(channels).includes(wantGroup.g) ? wantGroup.g : ALL;
+      wantGroup = null;
+      if (group === FAV && !inGroup(FAV).length) group = ALL;
+      setShown(inGroup(group));
+      return;
+    }
     group = last && last.pl === pl.id && (last.group === GFAV || groupsOf(channels).includes(last.group)) ? last.group : ALL;
     // Остановились в папке, где этого канала уже нет (например, убрали из избранного) — открываем «Все каналы»
     if (last && last.pl === pl.id && last.name && group !== ALL && !inGroup(group).some(c => c.name === last.name)) group = ALL;
@@ -723,11 +730,11 @@
     show('player');
     const fresh = !pl || pl.id !== p.id || data || !channels.length;
     if (fresh) loadPlaylist(p, data);
-    if (fresh && pl && pl.id !== p.id) { cancelPending(); Player.stop(); cur = -1; }
+    if (fresh && pl && pl.id !== p.id) { if (!jumped) { cancelPending(); Player.stop(); } cur = -1; }
     const lastIdx = lastIndex();
     if (autoplay && lastIdx >= 0 && !needsPin(shown[lastIdx])) { play(lastIdx); return; }
     wantAuto = !!autoplay && !channels.length;   // каналы ещё скачиваются — включим последний канал, когда придут
-    if (playingCh && cur < 0) {   // идущий канал из другой папки — открываем его папку
+    if (playingCh && cur < 0 && !jumped) {   // идущий канал из другой папки — открываем его папку
       const g = groupsOf(channels).find(x => x !== FAV && x !== ALL && x === playingCh.group);
       if (g && !GLOBAL(group)) { group = g; setShown(inGroup(g)); }
     }
@@ -743,7 +750,7 @@
     renderGuide();
     guideScope();
     // Ничего не играет (первый запуск, переустановка) — канал под курсором сразу идёт в окне видео
-    if ((cur < 0 || !Player.isPlaying()) && shown.length) previewInGuide(gi);
+    if ((jumped ? !Player.isPlaying() : (cur < 0 || !Player.isPlaying())) && shown.length) previewInGuide(gi);
   }
   function closeGuide() {
     Radio.visible(true);
@@ -765,7 +772,7 @@
   function renderGuide() {
     const tiles = Store.view() === 'tiles';
     $('guide').classList.toggle('tiles', tiles);
-    $('guide').classList.toggle('playing', cur >= 0 && Player.isPlaying());
+    $('guide').classList.toggle('playing', (cur >= 0 || !!playingCh) && Player.isPlaying());
     $('g-group').textContent = (pl ? pl.name + ' · ' : '') + groupLabel(group);
     if (tiles) return renderTiles();
     const rows = $('g-rows');
@@ -888,6 +895,7 @@
     if (c !== playingCh) { reconnects = []; clearTimeout(stallTimer); }
     if (i !== cur) prev = cur;
     cur = i;
+    jumped = false;
     playingCh = c;
     arch = null;
     if (Radio.looks(c)) { Radio.show(c, dispName(c)); Radio.visible(false); } else Radio.hide();
@@ -992,9 +1000,13 @@
     });
   }
   // Папка другого плейлиста: переходим на этот плейлист и его папку
+  // Идущий канал не останавливается и остаётся «последним», пока в новой папке не выбран другой канал
+  let jumped = false;     // true, пока идёт канал прежней папки, а на экране уже другая
+  let wantGroup = null;   // {pl, g} — какую папку открыть у плейлиста, на который перешли
   function openOtherPlaylist(p, g) {
-    cancelPending(); Player.stop(); cur = -1; playingCh = null;
-    Store.saveLast({ pl: p.id, group: g, name: '' });
+    cur = -1;
+    jumped = true;
+    wantGroup = { pl: p.id, g };
     openGuide(p);
   }
   let drExpanded = null;
@@ -1564,7 +1576,7 @@
       vodList = { cats: vodList.cats.filter(c => !bad.has(c.id)), items: vodList.items.filter(x => !bad.has(x.cat) && !isAdultName(x.name)) };
     }
     if (my !== vodReq || screen !== 'vod') return;   // пока каталог скачивался, с экрана ушли
-    vodCat = null; vodQuery = '';
+    vodCat = null; vodQuery = ''; vodExp = null;
     vodRenderCats();
     vodShowItems();
     Nav.setScope($('scr-vod'), vodBack, vodKeys);
@@ -1574,27 +1586,49 @@
   function vodRenderCats() {
     const box = $('vod-cats');
     box.innerHTML = '';
-    const add = (label, on, act) => {
+    const add = (label, on, act, key) => {
       const el = document.createElement('div');
       el.className = 'grp focusable' + (on ? ' on' : '');
       el.tabIndex = 0;
       el.textContent = label;
       el.onclick = act;
+      el._key = key || '';
       box.appendChild(el);
     };
     add('🔍  ' + t('vod_search') + (vodQuery ? ': ' + vodQuery : ''), !!vodQuery, () => inputDialog(t('vod_search'), vodQuery, false, v => {
       vodQuery = v; vodCat = null;
       setTimeout(() => { vodRenderCats(); vodShowItems(); Nav.setScope($('scr-vod'), vodBack, vodKeys); Nav.focus($('vod-grid').firstChild || $('vod-cats').firstChild); }, 0);
     }, () => { Nav.setScope($('scr-vod'), vodBack, vodKeys); Nav.focus($('vod-cats').firstChild); }));
-    add(t('vod_all') + '  (' + vodList.items.length + ')', vodCat === null && !vodQuery, () => vodPickCat(null));
-    vodList.cats.forEach(c => add(c.name, vodCat === c.id, () => vodPickCat(c.id)));
+    add(t('vod_all') + '  (' + vodList.items.length + ')', vodCat === null && !vodQuery, () => vodPickCat(null), 'all');
+    // Как в Android: категории вида «Сериалы | Боевик» собраны в разделы — сначала «Сериалы», внутри «Боевик».
+    // Раздел раскрывается по OK; раскрыт один раздел
+    const pre = c => { const i = c.name.indexOf('|'); return i > 0 ? c.name.slice(0, i).trim() : ''; };
+    const cnt = {};
+    vodList.cats.forEach(c => { const p = pre(c); if (p) cnt[p] = (cnt[p] || 0) + 1; });
+    const num = {};
+    vodList.items.forEach(x => { num[x.cat] = (num[x.cat] || 0) + 1; });
+    const seen = {};
+    vodList.cats.forEach(c => {
+      const p = pre(c);
+      if (!p || cnt[p] < 2) { add(c.name + '  (' + (num[c.id] || 0) + ')', vodCat === c.id, () => vodPickCat(c.id), 'c' + c.id); return; }
+      if (seen[p]) return;
+      seen[p] = true;
+      const subs = vodList.cats.filter(z => pre(z) === p);
+      const open = vodExp === p;
+      add((open ? '▾  ' : '▸  ') + p + '  (' + subs.reduce((n, z) => n + (num[z.id] || 0), 0) + ')', false, () => { vodExp = open ? null : p; vodRenderCats(); vodFocusCat('s' + p); }, 's' + p);
+      if (open) subs.forEach(z => add('      ' + z.name.slice(z.name.indexOf('|') + 1).trim() + '  (' + (num[z.id] || 0) + ')', vodCat === z.id, () => vodPickCat(z.id), 'c' + z.id));
+    });
+  }
+  let vodExp = null;   // какой раздел категорий раскрыт
+  function vodFocusCat(key) {
+    const el = [...$('vod-cats').children].find(e => e._key === key);
+    Nav.focus(el || $('vod-cats').children[1] || $('vod-cats').firstChild);
   }
   function vodPickCat(id) {
     vodCat = id; vodQuery = '';
-    const i = id === null ? 1 : 2 + vodList.cats.findIndex(c => c.id === id);
     vodRenderCats();
     vodShowItems();
-    Nav.focus($('vod-cats').children[i]);
+    vodFocusCat(id === null ? 'all' : 'c' + id);
   }
   function vodShowItems() {
     const q = vodQuery.toLowerCase();
@@ -1734,7 +1768,16 @@
     if (!episodes.length) { doc(x.name, t('vod_empty'), () => { Nav.setScope($('scr-vod'), vodBack, vodKeys); Nav.focus(from); }); return; }
     const urls = episodes.map(e => vodUrl('series', e.id, e.ext));
     const titles = episodes.map(e => x.name + ' · ' + t('vod_se', e.season, e.number) + (e.title && !e.title.includes(x.name) ? ' · ' + e.title : ''));
-    const playEp = j => vodPlay(x, urls, titles, j, episodes.map(e => e.id), vodPos(urls[j]));
+    const epIds = episodes.map(e => e.id);
+    const infoBack = () => { $('vodinfo').classList.add('hidden'); Nav.setScope($('scr-vod'), vodBack, vodKeys); Nav.focus(from); };
+    // Серию уже начинали смотреть — спрашиваем: продолжить с того места или начать сначала
+    const playEp = j => {
+      const at = vodPos(urls[j]);
+      if (!(at > 0)) return vodPlay(x, urls, titles, j, epIds, 0);
+      pick(titles[j], [{ label: t('vod_resume', timeText(at)) }, { label: t('vod_from_start') }],
+        k => vodPlay(x, urls, titles, j, epIds, k === 0 ? at : 0),
+        () => { Nav.setScope($('vodinfo'), infoBack); Nav.focus($('vi-list').firstChild); });
+    };
     const btns = [];
     const last = localStorage.getItem('vodlast.' + vodPl.id + '.' + x.id);
     const li = episodes.findIndex(e => e.id === last);
@@ -1776,11 +1819,11 @@
     const p = Player.pos(), d = Player.duration();
     if (p > 0) setVodPos(vod.urls[vod.idx], d > 0 && p > d - 120000 ? 0 : p);
   }, 10000);
-  function vodBar() {
+  function vodBar(keep) {
     if (!vod) return;
     const p = Player.pos(), d = Player.duration();
     $('bar-name').textContent = vod.titles[vod.idx];
-    $('bar-group').textContent = vodPl ? vodPl.name : '';
+    $('bar-group').textContent = '';
     $('bar-num').textContent = vod.epIds ? '' : '🎬';
     $('bar-logo').classList.add('hidden');
     $('bar-prog').textContent = (Player.isPaused() ? '⏸  ' : '▶  ') + timeText(p) + (d > 0 ? '  /  ' + timeText(d) : '');
@@ -1788,11 +1831,13 @@
     $('bar-left').textContent = d > 0 ? '−' + timeText(Math.max(0, d - p)) : '';
     $('bar-fill').style.width = d > 0 ? Math.round(100 * p / d) + '%' : '0';
     $('bar-bubbles').innerHTML = '';
+    // keep — только обновить цифры на уже открытой плашке (раз в секунду), не продлевая её показ
+    if (keep) return;
     $('bar').classList.remove('hidden');
     clearTimeout(barTimer);
     barTimer = setTimeout(() => $('bar').classList.add('hidden'), Store.barSec() * 1000);
   }
-  setInterval(() => { if (vod && !$('bar').classList.contains('hidden')) vodBar(); }, 1000);
+  setInterval(() => { if (vod && !$('bar').classList.contains('hidden')) vodBar(true); }, 1000);
   // ◀ — назад на 10 с, ▶ — вперёд на 30 с (нажатия складываются)
   let vodSeek = 0, vodSeekTimer = null;
   function vodSeekBy(ms) {
@@ -1976,6 +2021,7 @@
   let arch = null, archT0 = 0, pendingSeek = 0, seekTimer = null;
   function streamUrl(c) {
     archT0 = Date.now();
+    Player.setUa(c.ua);
     return arch ? (Catchup.url(c, arch.p, arch.from) || c.url) : c.url;
   }
   // Прошедшая передача: из архива, если он есть у канала
@@ -2121,6 +2167,8 @@
   });
 
   Player.on('error', playError);
+  // Слишком много попыток открыть один адрес подряд — останавливаемся и говорим об этом
+  Player.on('giveup', () => { $('pl-spinner').classList.add('hidden'); toast(t('play_error')); });
   // Родной плеер замер без сообщений — сразу запасной (если он этот канал умеет), иначе открываем заново
   Player.on('frozen', () => {
     const c = shown[cur];
@@ -2194,6 +2242,7 @@
     if (shown[next] !== playingCh) { reconnects = []; clearTimeout(stallTimer); }
     if (next !== cur) prev = cur;
     cur = next;
+    jumped = false;
     const c = shown[cur];
     playingCh = c;
     show('player');
@@ -2212,7 +2261,7 @@
     const c = shown[cur];
     if (!c) return;
     $('bar-name').textContent = dispName(c);
-    $('bar-group').textContent = groupLabel(group);
+    $('bar-group').textContent = '';
     $('bar-num').textContent = cur + 1;
     const lg = $('bar-logo');
     lg.onerror = () => lg.classList.add('hidden');
@@ -2963,20 +3012,41 @@
   // Телевизор часто не закрывает Лупо, а прячет его (кнопка «Домой», удержание «Назад», выключение пультом).
   // Тогда при возвращении программа не запускается заново и новую версию не проверяет — проверяем сами:
   // есть новее — тихо скачиваем и перезапускаемся (не чаще раза в 20 минут)
-  let lastResumeCheck = Date.now();
-  document.addEventListener('visibilitychange', async () => {
-    if (document.hidden || Date.now() - lastResumeCheck < 20 * 60000) return;
-    lastResumeCheck = Date.now();
+  // Кроме того: при запуске интернет на телевизоре может быть ещё не готов (проверка в boot.js не прошла) — поэтому
+  // проверяем ещё раз через 30 секунд, через 3 минуты и дальше каждый час. Новая версия скачивается тихо:
+  // в первые 3 минуты после запуска Лупо перезапускается сразу (человек только включил телевизор),
+  // позже — когда Лупо спрячут (выключат телевизор или выйдут), чтобы не обрывать просмотр
+  const T_START = Date.now();
+  let lastUpdCheck = 0, updReady = false, updRunning = false;
+  // Версия, которая на этом телевизоре не запустилась: 12 часов её не трогаем, потом пробуем снова
+  function badNow(v) {
+    try { return localStorage.getItem('lupo.badVersion') === v && Date.now() - (+localStorage.getItem('lupo.badAt') || 0) < 12 * 3600000; } catch (e) { return false; }
+  }
+  async function quietUpdate(why) {
+    if (updRunning || updBusy) return;
+    if (updReady) { if (why === 'return' || Date.now() - T_START < 180000) { Player.stop(); location.reload(); } return; }
+    if (Date.now() - lastUpdCheck < 2 * 60000) return;
+    lastUpdCheck = Date.now();
+    updRunning = true;
     try {
       const info = JSON.parse(await updText(UPDATE_URL + 'version.json?t=' + Date.now(), 10000));
-      if (!info || !newerVer(info.v, VERSION)) return;
-      // Версию, которая на этом телевизоре уже не запустилась, сами второй раз не ставим
-      if (localStorage.getItem('lupo.badVersion') === info.v) return;
-      await saveUpdate(info.v, await updFiles(info));
-      Player.stop();
-      location.reload();
-    } catch (e) { Store.addLog(new Date().toLocaleString(LANG) + ' — update on return\n' + (e && (e.message || e.name) || e)); }
+      if (info && newerVer(info.v, VERSION) && !badNow(info.v)) {
+        await saveUpdate(info.v, await updFiles(info));
+        updReady = true;
+        Store.addLog(new Date().toLocaleString(LANG) + ' — update ' + info.v + ' downloaded (' + why + ')');
+        if (why === 'return' || document.hidden || Date.now() - T_START < 180000) { Player.stop(); location.reload(); }
+      }
+    } catch (e) { Store.addLog(new Date().toLocaleString(LANG) + ' — update (' + why + ')\n' + (e && (e.message || e.name) || e)); }
+    updRunning = false;
+  }
+  document.addEventListener('visibilitychange', () => {
+    // Спрятали — скачанная версия включается сразу; вернули — проверяем, нет ли новее
+    if (document.hidden) { if (updReady) location.reload(); return; }
+    quietUpdate('return');
   });
+  setTimeout(() => quietUpdate('start'), 30000);
+  setTimeout(() => quietUpdate('start'), 180000);
+  setInterval(() => quietUpdate('hourly'), 3600000);
 
   // Сторож памяти: телевизор даёт Лупо немного места (на Samsung около 84 МБ). Занято больше 70 % — удаляем то,
   // что скачивается заново само (сохранённую программу передач; больше 85 % — ещё и списки каналов неоткрытых

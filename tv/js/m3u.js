@@ -82,9 +82,10 @@ const M3U = (() => {
       } else if (STREAM.test(line)) {
         channels.push({
           name: name || channelName(channels.length + 1),
-          url: line.split('|')[0].trim(),
+          url: fixUrl(line.split('|')[0].trim(), line),
           logo, group: group || noGroup, epgId: tvgId,
-          ...catchupFields(cu || defCu)
+          ...catchupFields(cu || defCu),
+          ...userAgentOf(line)
         });
         name = logo = group = tvgId = cu = null;
       }
@@ -92,6 +93,26 @@ const M3U = (() => {
     return { channels, epg };
   }
 
+  // Каналы сайта Ritsa: телевизор не умеет передавать сайту Referer, поэтому смотрим их
+  // через посредника (воркер Cloudflare), который добавляет нужные заголовки сам
+  const PROXY = 'https://lupo-ritsa.kobozevmark.workers.dev';
+  // Любой канал, у которого в плейлисте указан Referer («адрес|Referer=…»), на телевизоре идёт через посредника
+  function fixUrl(u, line) {
+    if (u.indexOf('https://ritsatv.ru') === 0) return PROXY + u.slice('https://ritsatv.ru'.length);
+    const m = /\|.*?Referer=([^&|]+)/i.exec(line || '');
+    if (!m) return u;
+    try {
+      const ref = new URL(decodeURIComponent(m[1])).host, x = /^https:\/\/([^/]+)(\/.*)?$/i.exec(u);
+      if (ref && x) return PROXY + '/h/' + ref + '/' + x[1] + (x[2] || '/');
+    } catch (e) { }
+    return u;
+  }
+  // Адрес вида «…|Referer=…&User-Agent=…»: родной плеер Samsung умеет передать сайту только User-Agent
+  function userAgentOf(line) {
+    const m = /\|.*?User-Agent=([^&|]+)/i.exec(line);
+    if (!m) return {};
+    try { return { ua: decodeURIComponent(m[1]) }; } catch (e) { return {}; }
+  }
   function catchupFields(c) {
     return c ? { catchup: c.type || '', catchupSource: c.src || null, catchupDays: c.days || 0 } : {};
   }

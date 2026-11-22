@@ -18,7 +18,9 @@ const Nav = (() => {
   function focus(el) {
     if (!el) return;
     el.focus({ preventScroll: true });
-    el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    // Как в Android: курсор держится посередине списка, список листается под ним;
+    // у начала и конца списка листать нечего — курсор сам идёт к краю
+    el.scrollIntoView({ block: 'center', inline: 'nearest' });
   }
 
   function move(dir) {

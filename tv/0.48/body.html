@@ -1,0 +1,206 @@
+<!-- Lupo Player для телевизоров Samsung, LG и в браузере -->
+<object id="av" type="application/avplayer"></object>
+<!-- Заставка, часы на экране, закрытый экран до ввода PIN-кода -->
+<div class="splash hidden" id="splash"><img src="img/logo.png" alt=""></div>
+<div class="pin-cover hidden" id="pin-cover"></div>
+<div class="clock hidden" id="clock"></div>
+<div id="app">
+  <section id="scr-playlists" class="screen hidden">
+    <header class="top">
+      <img class="logo" src="img/logo.png" alt="">
+      <div class="title" data-t="app_name"></div>
+      <button class="btn" id="btn-settings" data-t="settings"></button>
+      <button class="btn" id="btn-add" data-t="add_playlist"></button>
+    </header>
+    <div class="subtitle" data-t="main_subtitle"></div>
+    <div class="list" id="playlists"></div>
+    <div class="empty" id="playlists-empty" data-t="empty_playlists"></div>
+  </section>
+
+  <section id="scr-add" class="screen hidden">
+    <header class="top">
+      <img class="logo" src="img/logo.png" alt="">
+      <div class="title" id="add-title" data-t="new_playlist"></div>
+    </header>
+    <div class="tabs">
+      <button class="btn tab on" data-type="m3u">M3U</button>
+      <button class="btn tab" data-type="xtream">Xtream Codes</button>
+    </div>
+    <!-- Поле выбирается пультом как строка; клавиатура телевизора открывается только по OK -->
+    <div class="form">
+      <div class="fbox focusable" tabindex="0"><input class="field" id="f-name" tabindex="-1" data-ph="hint_name"></div>
+      <div id="f-m3u">
+        <div class="fbox focusable" tabindex="0"><input class="field" id="f-url" tabindex="-1" data-ph="hint_url"></div>
+      </div>
+      <div id="f-xtream" class="hidden">
+        <div class="fbox focusable" tabindex="0"><input class="field" id="f-server" tabindex="-1" data-ph="hint_server"></div>
+        <div class="fbox focusable" tabindex="0"><input class="field" id="f-user" tabindex="-1" data-ph="hint_login"></div>
+        <div class="fbox focusable" tabindex="0"><input class="field" id="f-pass" tabindex="-1" data-ph="hint_password"></div>
+      </div>
+      <div class="fbox focusable" tabindex="0"><input class="field" id="f-epg" tabindex="-1" data-ph="hint_epg"></div>
+      <div class="row">
+        <button class="btn" id="btn-check" data-t="check"></button>
+        <button class="btn primary" id="btn-save" data-t="save_open"></button>
+        <button class="btn" id="btn-cancel" data-t="cancel"></button>
+      </div>
+      <div class="status-ok hidden" id="add-ok"></div>
+      <div class="error" id="add-error"></div>
+    </div>
+  </section>
+
+  <section id="scr-settings" class="screen hidden">
+    <header class="top">
+      <img class="logo" src="img/logo.png" alt="">
+      <div class="title" data-t="settings_title"></div>
+    </header>
+    <div class="subtitle" data-t="settings_subtitle"></div>
+    <div class="list" id="settings-list"></div>
+    <div class="version" id="settings-version"></div>
+  </section>
+
+  <!-- Фильмы и сериалы (Xtream): слева разделы, справа постеры -->
+  <section id="scr-vod" class="screen hidden">
+    <header class="top">
+      <img class="logo" src="img/logo.png" alt="">
+      <div class="title" id="vod-title"></div>
+    </header>
+    <div class="vod-body">
+      <div class="list vod-cats" id="vod-cats"></div>
+      <div class="vod-grid" id="vod-grid"></div>
+    </div>
+    <div class="vod-status hidden" id="vod-status"></div>
+  </section>
+
+  <section id="scr-player" class="screen hidden">
+    <video id="video" playsinline></video>
+    <!-- Радио: живой фон цветов значка, значок, станция и песня -->
+    <div class="radio hidden" id="radio">
+      <canvas id="radio-bg"></canvas>
+      <div class="radio-card" id="radio-card">
+        <div class="radio-logo" id="radio-logo"></div>
+        <div class="radio-name" id="radio-name"></div>
+        <div class="radio-song" id="radio-song"></div>
+        <div class="radio-artist" id="radio-artist"></div>
+      </div>
+    </div>
+    <div class="subs hidden" id="subs"></div>
+    <div class="spinner big hidden" id="pl-spinner"></div>
+    <!-- Плашка: номер и логотип | название канала, справа часы и «пузыри» (качество, скорость, звук);
+         ниже — что идёт сейчас с полоской, ещё ниже — две следующие передачи -->
+    <div class="bar panel hidden" id="bar">
+      <div class="bar-left">
+        <div class="bar-num" id="bar-num"></div>
+        <div class="bar-logo-box"><img class="bar-logo" id="bar-logo" alt=""></div>
+      </div>
+      <div class="bar-text">
+        <div class="bar-head">
+          <div class="bar-name" id="bar-name"></div>
+          <div class="bar-bubbles" id="bar-bubbles"></div>
+          <div class="bar-clock" id="bar-clock"></div>
+        </div>
+        <div class="bar-group" id="bar-group"></div>
+        <div class="bar-prog" id="bar-prog"></div>
+        <div class="bar-row"><div class="bar-line"><i id="bar-fill"></i></div><span id="bar-left"></span></div>
+        <div class="bar-next" id="bar-next"></div>
+        <div class="bar-next" id="bar-next2"></div>
+      </div>
+    </div>
+    <!-- Список поверх видео (◀ на видео): каналы | программа выделенного канала | описание передачи.
+         ◀ из каналов — папки -->
+    <div class="side panel hidden" id="side">
+      <div class="side-groups list hidden" id="side-groups"></div>
+      <div class="side-ch">
+        <div class="side-title" id="side-title"></div>
+        <div class="list" id="side-list"></div>
+      </div>
+      <div class="side-epg">
+        <div class="side-title" id="side-epg-title"></div>
+        <div class="list" id="side-epg"></div>
+      </div>
+      <div class="side-desc">
+        <div class="sd-title" id="sd-title"></div>
+        <div class="sd-time" id="sd-time"></div>
+        <div class="sd-text" id="sd-text"></div>
+      </div>
+    </div>
+    <!-- Телепрограмма сеткой («Назад» на видео), как в Android: видео в окне слева вверху,
+         справа — о передаче под курсором, внизу — каналы и передачи по времени. ◀ в начале строки — папки и плейлисты -->
+    <div class="guide hidden" id="guide">
+      <div class="g-top">
+        <div class="g-video" id="g-video"><img src="img/logo.png" alt=""></div>
+        <div class="g-info">
+          <div class="g-chan" id="g-chan"></div>
+          <div class="g-title" id="g-title"></div>
+          <div class="g-time" id="g-time"></div>
+          <div class="g-desc" id="g-desc"></div>
+        </div>
+      </div>
+      <div class="g-bottom">
+        <div class="g-head"><div class="g-group" id="g-group"></div><div class="g-times" id="g-times"></div></div>
+        <div class="g-rows" id="g-rows"></div>
+        <div class="g-tiles list hidden" id="g-tiles"></div>
+      </div>
+      <div class="drawer hidden" id="drawer">
+        <div class="dr-menu list hidden" id="dr-menu"></div>
+        <div class="dr-groups list" id="dr-groups"></div>
+      </div>
+    </div>
+    <div class="toast hidden" id="toast"></div>
+  </section>
+  <!-- Фильм или сериал: постер, описание, кнопки «Смотреть», сезоны -->
+  <div class="vodinfo hidden" id="vodinfo">
+    <div class="vi-pic" id="vi-pic"></div>
+    <div class="vi-text">
+      <div class="vi-title" id="vi-title"></div>
+      <div class="vi-meta" id="vi-meta"></div>
+      <div class="vi-plot" id="vi-plot"></div>
+      <div class="vi-list" id="vi-list"></div>
+    </div>
+  </div>
+  <div class="sched panel pick hidden" id="pick">
+    <div class="sched-title" id="pick-title"></div>
+    <div class="list" id="pick-list"></div>
+  </div>
+  <div class="sched panel hidden" id="sched">
+    <div class="sched-title" id="sched-title"></div>
+    <div class="list" id="sched-list"></div>
+  </div>
+  <!-- Длинный текст: политика, условия, журнал -->
+  <!-- Поиск канала: поле (клавиатура по OK) и результаты -->
+  <div class="sched panel hidden" id="search">
+    <div class="sched-title" id="search-title"></div>
+    <div class="fbox focusable" tabindex="0"><input class="field" id="search-input" tabindex="-1"></div>
+    <div class="list" id="search-list"></div>
+  </div>
+  <!-- Тест скорости: спидометр, пинг и джиттер, серверы провайдера (как в Android, дизайн 2) -->
+  <div class="speed hidden" id="speed">
+    <div class="sp-title" data-t="speed_test"></div>
+    <div class="sp-main">
+      <div class="sp-gauge"><svg viewBox="0 0 200 120"><path d="M20 110 A80 80 0 0 1 180 110" class="sp-track"/><path d="M20 110 A80 80 0 0 1 180 110" class="sp-fill" id="sp-arc"/></svg>
+        <div class="sp-num" id="sp-num">0</div><div class="sp-unit" data-t="speed_unit"></div></div>
+      <div class="sp-side">
+        <div class="sp-stat"><b id="sp-ping">—</b><span id="sp-ping-l"></span></div>
+        <div class="sp-stat"><b id="sp-jit">—</b><span id="sp-jit-l"></span></div>
+        <div class="sp-stat"><b id="sp-hd">—</b><span>HD / 4K</span></div>
+        <div class="sp-status" id="sp-status"></div>
+      </div>
+    </div>
+    <div class="sp-servers-title" data-t="speed_servers"></div>
+    <div class="sp-servers" id="sp-servers"></div>
+    <button class="btn primary sp-btn" id="sp-btn" data-t="speed_start"></button>
+  </div>
+  <!-- Ввод текста или PIN-кода: поле (клавиатура по OK) и кнопка -->
+  <div class="sched panel pick center hidden" id="input">
+    <div class="sched-title" id="input-title"></div>
+    <div class="fbox focusable" tabindex="0"><input class="field" id="input-field" tabindex="-1"></div>
+    <div class="row"><button class="btn primary" id="input-ok">OK</button><button class="btn" id="input-cancel" data-t="cancel"></button></div>
+    <div class="error" id="input-error"></div>
+  </div>
+  <!-- Номер канала, набранный цифрами пульта -->
+  <div class="digits hidden" id="digits"></div>
+  <div class="doc hidden" id="doc">
+    <div class="sched-title" id="doc-title"></div>
+    <div class="doc-text focusable" tabindex="0" id="doc-text"></div>
+    <div class="row doc-btns hidden" id="doc-btns"></div>
+  </div>
+</div>

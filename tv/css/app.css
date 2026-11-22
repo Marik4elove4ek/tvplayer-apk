@@ -418,3 +418,10 @@ html.av-on.split-web #video { display: block !important; background: #000; }
   .vod-pic > * { position: absolute; top: 0; left: 0; }
   .vi-pic { height: 600px; }
 }
+
+/* Курсор как в Android: не рамка, а заливка сине-фиолетовым переходом */
+.grp:focus, .ch:focus, .row-item:focus, .pick-item:focus, .vi-list .pick-item:focus, .ep-item:focus, .sched-item:focus,
+.tile:focus, .sp-row:focus { background: linear-gradient(90deg, var(--accent), var(--accent2)); border-color: transparent; color: #fff; }
+.grp:focus *, .ch:focus *, .row-item:focus *, .pick-item:focus *, .ep-item:focus *, .sched-item:focus *, .tile:focus *, .sp-row:focus * { color: #fff; }
+.ch:focus .ch-prog b { background: rgba(255,255,255,.3); }
+.ch:focus .ch-prog i { background: #fff; }
