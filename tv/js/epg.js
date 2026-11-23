@@ -54,9 +54,25 @@ const Epg = (() => {
       onText(dec.decode());
       return;
     }
+    // Старые телевизоры (нет встроенной распаковки или чтения по частям): файл распаковывается и отдаётся
+    // разбору небольшими кусками, с паузами для пульта и экрана. Раньше он шёл одним огромным куском —
+    // разбор такого куска занимал минуты, и телевизор «висел»
     const buf = new Uint8Array(await r.arrayBuffer());
-    const plain = buf[0] === 0x1f && buf[1] === 0x8b ? pako.inflate(buf) : buf;
-    onText(new TextDecoder('utf-8').decode(plain));
+    const dec = new TextDecoder('utf-8');
+    const pause = () => new Promise(r2 => setTimeout(r2, 0));
+    const STEP = 32768;
+    if (buf[0] === 0x1f && buf[1] === 0x8b) {
+      const inf = new pako.Inflate();
+      inf.onData = chunk => onText(dec.decode(chunk, { stream: true }));
+      for (let i = 0; i < buf.length; i += STEP) {
+        inf.push(buf.subarray(i, i + STEP), i + STEP >= buf.length);
+        if (inf.err) throw new Error('gzip: ' + (inf.msg || inf.err));
+        await pause();
+      }
+    } else {
+      for (let i = 0; i < buf.length; i += STEP) { onText(dec.decode(buf.subarray(i, i + STEP), { stream: true })); await pause(); }
+    }
+    onText(dec.decode());
   }
 
   // Каналы плейлиста → ключи программы: по tvg-id и по названию
@@ -197,9 +213,15 @@ const Epg = (() => {
     const ctx = want(channels);
     let r;
     try {
-      r = await inWorker(urls, ctx);
-      // В фоновом потоке нечем распаковать .gz — тот источник разбираем здесь
-      const again = r.report.filter(x => !x.ok && /pako|DecompressionStream/i.test(x.err || '')).map(x => x.url);
+      // Телевизор без встроенной распаковки: .gz в фоновом потоке распаковать нечем — такие источники сразу
+      // разбираем здесь (а не качаем дважды)
+      const here = typeof DecompressionStream === 'undefined' ? urls.filter(u => /\.gz(\?|$)/i.test(u)) : [];
+      const there = urls.filter(u => !here.includes(u));
+      r = there.length ? await inWorker(there, ctx) : { map: new Map(), report: [] };
+      // Источник, который фоновый поток не смог получить (на части LG он не читает адреса, которые страница
+      // читает запасным способом), пробуем ещё раз здесь
+      const again = here.concat(r.report.filter(x => !x.ok).map(x => x.url));
+      r.report = r.report.concat(here.map(u => ({ url: u, ok: false, err: 'main' })));
       if (again.length) {
         const h = await parseAll(again, ctx);
         h.map.forEach((list, k) => { if (!r.map.has(k)) r.map.set(k, list); });

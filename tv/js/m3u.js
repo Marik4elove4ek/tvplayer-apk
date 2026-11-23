@@ -96,14 +96,17 @@ const M3U = (() => {
   // Каналы сайта Ritsa: телевизор не умеет передавать сайту Referer, поэтому смотрим их
   // через посредника (воркер Cloudflare), который добавляет нужные заголовки сам
   const PROXY = 'https://lupo-ritsa.kobozevmark.workers.dev';
-  // Любой канал, у которого в плейлисте указан Referer («адрес|Referer=…»), на телевизоре идёт через посредника
+  // Через посредника идут только каналы этих сайтов (им нужен Referer, который телевизор передать не умеет).
+  // Каналы с Referer других сайтов — из любых плейлистов пользователя — через посредника НЕ идут: в их адресах
+  // бывают логин и пароль подписки, и им нечего делать на чужом сервере (проверка безопасности 23.11)
+  const PROXY_REFS = ['ritsatv.ru', 'gtrkvainah.ru'];
   function fixUrl(u, line) {
     if (u.indexOf('https://ritsatv.ru') === 0) return PROXY + u.slice('https://ritsatv.ru'.length);
     const m = /\|.*?Referer=([^&|]+)/i.exec(line || '');
     if (!m) return u;
     try {
       const ref = new URL(decodeURIComponent(m[1])).host, x = /^https:\/\/([^/]+)(\/.*)?$/i.exec(u);
-      if (ref && x) return PROXY + '/h/' + ref + '/' + x[1] + (x[2] || '/');
+      if (ref && x && PROXY_REFS.includes(ref.replace(/^www\./i, '').toLowerCase())) return PROXY + '/h/' + ref + '/' + x[1] + (x[2] || '/');
     } catch (e) { }
     return u;
   }

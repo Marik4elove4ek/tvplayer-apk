@@ -269,7 +269,7 @@
   // ---------- Настройки: порядок как в Android (от главного к редкому) ----------
   const LANGS = [['en', 'English'], ['ru', 'Русский'], ['he', 'עברית'], ['fr', 'Français'], ['ar', 'العربية'],
     ['it', 'Italiano'], ['ja', '日本語'], ['ko', '한국어'], ['zh', '中文']];
-  const VERSION = '0.52';
+  const VERSION = '0.53';
   // Если телевизор даёт странице не 1920 точек в ширину, вся страница уменьшается под экран — ничего не обрезается
   // Старый браузер телевизора не знает «gap» в строках (flex) — включаем запасные отступы (см. конец app.css)
   (function flexGap() {
@@ -340,7 +340,7 @@
         doc(t('log_title'), l.length ? l.join('\n\n') : t('log_empty'), again('log'),
           [[t('exo_log_clear'), () => { Store.clearLog(); toast(t('log_empty')); openSettings('log'); }], [t('ok'), again('log')]]);
       }],
-      ['privacy', t('legal_privacy'), t('legal_open'), () => doc(t('legal_privacy'), t('legal_privacy_text') + '\n\n' + t('legal_privacy_extra'), again('privacy'))],
+      ['privacy', t('legal_privacy'), t('legal_open'), () => doc(t('legal_privacy'), t('legal_privacy_text') + '\n\n' + t('legal_privacy_extra') + '\n\n' + t('legal_privacy_tv'), again('privacy'))],
       ['terms', t('legal_terms'), t('legal_open'), () => doc(t('legal_terms'), t('legal_terms_text') + '\n\n' + t('legal_terms_extra'), again('terms'))],
       ['lic', t('legal_licenses'), t('legal_open'), () => doc(t('legal_licenses'), t('legal_licenses_text') +
         '\n\n• hls.js — Apache License 2.0.\n• mpegts.js — Apache License 2.0.\n• pako — MIT License.', again('lic'))]
@@ -1548,7 +1548,9 @@
     clearTimeout(panelIdle);
     panelIdle = setTimeout(() => {
       if (screen !== 'player' || !$('guide').classList.contains('hidden')) return;
-      if (!$('side').classList.contains('hidden') && !moving && !splitPending) closeSide();
+      // Список закрываем, только если пульт сейчас в нём: поверх может быть открыто меню канала, PIN или
+      // переименование — их нельзя оставлять на экране без пульта
+      if (!$('side').classList.contains('hidden') && !moving && !splitPending && Nav.scope() === $('side')) closeSide();
       if (!$('sched').classList.contains('hidden') && Nav.scope() === $('sched')) { $('sched').classList.add('hidden'); $('sched').classList.remove('center'); playerScope(); }
     }, 60000);
   }
@@ -2389,6 +2391,9 @@
     if (!/m3u8/i.test(url)) {
       // Радио одним потоком (Icecast/Shoutcast, mp3/aac): битрейт меряем сами, как в Android — сколько байт
       // пришло за 4 секунды (после первой секунды: в начале сервер отдаёт запас быстрее, чем идёт эфир)
+      // Только для радио: у обычного канала (.ts) это было бы второе подключение к провайдеру, а у многих
+      // подписок разрешено одно — показ мог обрываться
+      if (!Radio.isOn()) return null;
       if (!/^https?:/i.test(url) || typeof AbortController === 'undefined') return null;
       const ctl = new AbortController();
       const tm = setTimeout(() => ctl.abort(), 9000);
@@ -3076,6 +3081,71 @@
   }
 
   // ---------- Заставка: логотип «надувается», как пузырь ----------
+  // ---------- Первый запуск: условия использования и конфиденциальность (как в Android, Legal.kt) ----------
+  // Пока человек не поставил галочку «Я прочитал(а) и принимаю» и не нажал «Продолжить», Лупо не открывается.
+  // LEGAL_VERSION — номер редакции документов: увеличить — и согласие спросят заново у всех
+  const LEGAL_VERSION = 2;
+  function legalAccepted() { try { return (+localStorage.getItem('lupo.legal') || 0) >= LEGAL_VERSION; } catch (e) { return false; } }
+  function requireLegal(then) {
+    if (legalAccepted()) return then();
+    $('pin-cover').classList.remove('hidden');
+    let checked = false;
+    const render = focusId => {
+      const btns = $('doc-btns');
+      btns.innerHTML = '';
+      const old = $('legal-check');
+      if (old) old.remove();
+      $('doc-title').textContent = t('legal_title');
+      $('doc-text').textContent = t('legal_intro');
+      $('doc-text').scrollTop = 0;
+      // Галочка — отдельной строкой над кнопками
+      const check = document.createElement('div');
+      check.id = 'legal-check';
+      check.className = 'pick-item focusable' + (checked ? ' on' : '');
+      check.tabIndex = 0;
+      check.textContent = (checked ? '☑  ' : '☐  ') + t('legal_check');
+      $('doc').insertBefore(check, btns);
+      const mk = (label, primary, act) => {
+        const b = document.createElement('button');
+        b.className = 'btn' + (primary ? ' primary' : '');
+        b.textContent = label;
+        b.onclick = act;
+        btns.appendChild(b);
+        return b;
+      };
+      const read = mk(t('legal_read'), false, () => {
+        const back = () => render('read');
+        check.remove();
+        $('doc').classList.add('hidden');
+        pick(t('legal_read'), [{ label: t('legal_terms') }, { label: t('legal_privacy') }], i => {
+          if (i === 0) doc(t('legal_terms'), t('legal_terms_text') + '\n\n' + t('legal_terms_extra'), back);
+          else doc(t('legal_privacy'), t('legal_privacy_text') + '\n\n' + t('legal_privacy_extra') + '\n\n' + t('legal_privacy_tv'), back);
+        }, back);
+      });
+      mk(t('exit_app'), false, exitApp);
+      const ok = mk(t('legal_continue'), true, () => {
+        if (!checked) return;
+        try { localStorage.setItem('lupo.legal', String(LEGAL_VERSION)); localStorage.setItem('lupo.legalAt', String(Date.now())); } catch (e) { }
+        check.remove();
+        $('doc').classList.add('hidden');
+        then();
+      });
+      ok.disabled = !checked;
+      check.onclick = () => { checked = !checked; render('check'); };
+      btns.classList.remove('hidden');
+      $('doc').classList.remove('hidden');
+      // «Назад» на этом окне — вопрос «Выйти из программы?»
+      Nav.setScope($('doc'), () => askExit(() => render('check')));
+      Nav.focus(focusId === 'read' ? read : checked && focusId === 'check' ? ok : check);
+    };
+    render('check');
+  }
+  function exitApp() {
+    Player.stop();
+    try { if (window.tizen) tizen.application.getCurrentApplication().exit(); } catch (e) { }
+    try { if (window.webOS) webOS.platformBack(); } catch (e) { }
+    try { window.close(); } catch (e) { }
+  }
   function splash(then) {
     const el = $('splash');
     el.classList.remove('hidden');
@@ -3245,7 +3315,7 @@
     } catch (e) { }
   }
   // Как в Android: сразу играет последний канал; если его нет — телепрограмма; нет плейлистов — экран плейлистов
-  Promise.all([Store.ready(), autoRestore().then(devPlaylists), new Promise(r => splash(r))]).then(() => new Promise(r => askAppPin(r))).then(() => {
+  Promise.all([Store.ready(), autoRestore().then(devPlaylists), new Promise(r => splash(r))]).then(() => new Promise(r => requireLegal(r))).then(() => new Promise(r => askAppPin(r))).then(() => {
     $('pin-cover').classList.add('hidden');
     // Память телевизора мала: убираем каналы и программу плейлистов, которых уже нет
     const ids = Store.playlists().map(p => p.id);
