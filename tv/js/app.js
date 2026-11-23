@@ -269,7 +269,7 @@
   // ---------- Настройки: порядок как в Android (от главного к редкому) ----------
   const LANGS = [['en', 'English'], ['ru', 'Русский'], ['he', 'עברית'], ['fr', 'Français'], ['ar', 'العربية'],
     ['it', 'Italiano'], ['ja', '日本語'], ['ko', '한국어'], ['zh', '中文']];
-  const VERSION = '0.53';
+  const VERSION = '0.54';
   // Если телевизор даёт странице не 1920 точек в ширину, вся страница уменьшается под экран — ничего не обрезается
   // Старый браузер телевизора не знает «gap» в строках (flex) — включаем запасные отступы (см. конец app.css)
   (function flexGap() {
@@ -340,8 +340,8 @@
         doc(t('log_title'), l.length ? l.join('\n\n') : t('log_empty'), again('log'),
           [[t('exo_log_clear'), () => { Store.clearLog(); toast(t('log_empty')); openSettings('log'); }], [t('ok'), again('log')]]);
       }],
-      ['privacy', t('legal_privacy'), t('legal_open'), () => doc(t('legal_privacy'), t('legal_privacy_text') + '\n\n' + t('legal_privacy_extra') + '\n\n' + t('legal_privacy_tv'), again('privacy'))],
-      ['terms', t('legal_terms'), t('legal_open'), () => doc(t('legal_terms'), t('legal_terms_text') + '\n\n' + t('legal_terms_extra'), again('terms'))],
+      ['privacy', t('legal_privacy'), t('legal_open'), () => doc(t('legal_privacy'), t('legal_privacy_text') + '\n\n' + t('legal_privacy_extra') + '\n\n' + t('legal_privacy_extra2') + '\n\n' + t('legal_privacy_tv'), again('privacy'))],
+      ['terms', t('legal_terms'), t('legal_open'), () => doc(t('legal_terms'), t('legal_terms_text') + '\n\n' + t('legal_terms_extra') + '\n\n' + t('legal_terms_extra2'), again('terms'))],
       ['lic', t('legal_licenses'), t('legal_open'), () => doc(t('legal_licenses'), t('legal_licenses_text') +
         '\n\n• hls.js — Apache License 2.0.\n• mpegts.js — Apache License 2.0.\n• pako — MIT License.', again('lic'))]
     ];
@@ -3084,7 +3084,7 @@
   // ---------- Первый запуск: условия использования и конфиденциальность (как в Android, Legal.kt) ----------
   // Пока человек не поставил галочку «Я прочитал(а) и принимаю» и не нажал «Продолжить», Лупо не открывается.
   // LEGAL_VERSION — номер редакции документов: увеличить — и согласие спросят заново у всех
-  const LEGAL_VERSION = 2;
+  const LEGAL_VERSION = 3;
   function legalAccepted() { try { return (+localStorage.getItem('lupo.legal') || 0) >= LEGAL_VERSION; } catch (e) { return false; } }
   function requireLegal(then) {
     if (legalAccepted()) return then();
@@ -3118,8 +3118,8 @@
         check.remove();
         $('doc').classList.add('hidden');
         pick(t('legal_read'), [{ label: t('legal_terms') }, { label: t('legal_privacy') }], i => {
-          if (i === 0) doc(t('legal_terms'), t('legal_terms_text') + '\n\n' + t('legal_terms_extra'), back);
-          else doc(t('legal_privacy'), t('legal_privacy_text') + '\n\n' + t('legal_privacy_extra') + '\n\n' + t('legal_privacy_tv'), back);
+          if (i === 0) doc(t('legal_terms'), t('legal_terms_text') + '\n\n' + t('legal_terms_extra') + '\n\n' + t('legal_terms_extra2'), back);
+          else doc(t('legal_privacy'), t('legal_privacy_text') + '\n\n' + t('legal_privacy_extra') + '\n\n' + t('legal_privacy_extra2') + '\n\n' + t('legal_privacy_tv'), back);
         }, back);
       });
       mk(t('exit_app'), false, exitApp);
