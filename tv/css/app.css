@@ -253,14 +253,16 @@ html.av-on #video { display: none; }
 .drawer { background: var(--bg) !important; }
 
 /* Пока видео идёт через AVPlay, страница прозрачная — все экраны, кроме просмотра, получают свой фон */
-html.av-on .screen:not(#scr-player) { background: var(--bg) !important; }
+/* Все экраны, кроме просмотра, — со своим непрозрачным фоном: видео под меню не просвечивает никогда */
+.screen:not(#scr-player) { background: var(--bg) !important; }
 /* Папки и меню сдвигают сетку вправо без выхода за край экрана (иначе телевизор уменьшает всю страницу) */
 .guide { overflow: hidden; }
 .g-top, .g-bottom { transition: left .2s ease-out; }
 .guide.with-drawer .g-top { left: 480px; } .guide.with-drawer .g-bottom { left: 440px; }
 .guide.with-drawer.with-menu .g-top { left: 900px; } .guide.with-drawer.with-menu .g-bottom { left: 860px; }
 .guide.with-drawer .g-top, .guide.with-drawer .g-bottom { transform: none !important; }
-#dr-menu { display: flex; flex-direction: column; justify-content: center; }
+#dr-menu { display: flex; flex-direction: column; justify-content: center; position: relative; }
+#dr-menu .dr-version { position: absolute; left: 0; right: 0; bottom: 10px; text-align: center; }
 #dr-menu .grp { font-size: 26px; padding: 18px 24px; }
 /* Тест скорости */
 .speed { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 8; padding: 50px 90px; display: flex; flex-direction: column;
@@ -425,3 +427,7 @@ html.av-on.split-web #video { display: block !important; background: #000; }
 .grp:focus *, .ch:focus *, .row-item:focus *, .pick-item:focus *, .ep-item:focus *, .sched-item:focus *, .tile:focus *, .sp-row:focus * { color: #fff; }
 .ch:focus .ch-prog b { background: rgba(255,255,255,.3); }
 .ch:focus .ch-prog i { background: #fff; }
+/* Программа по двойному OK на видео — посередине экрана, компактно */
+.sched.center:not(.pick) { left: 50% !important; right: auto !important; top: 50% !important; bottom: auto !important; width: 900px !important;
+  max-height: 80vh; transform: translate(-50%, -50%); border-radius: 22px; border: 1px solid var(--stroke); animation: none; }
+.sched.center:not(.pick) .list { max-height: calc(80vh - 120px); }

@@ -36,6 +36,9 @@
   let screen = 'playlists';
   function show(name) {
     screen = name;
+    // Видео видно только на экране просмотра (и в окошке телепрограммы); в настройках, списке плейлистов,
+    // фильмах и других меню его не видно (звук продолжает идти)
+    Player.hideVideo(name !== 'player');
     if (name !== 'player') wantAuto = false;   // ушли на другой экран — канал сам уже не включаем
     screens.forEach(s => $('scr-' + s).classList.toggle('hidden', s !== name));
   }
@@ -118,6 +121,13 @@
     document.querySelectorAll('#scr-add .tab').forEach(b => b.classList.toggle('on', b.dataset.type === type));
     $('f-m3u').classList.toggle('hidden', type !== 'm3u');
     $('f-xtream').classList.toggle('hidden', type !== 'xtream');
+    // Куда переходит «Готово» на клавиатуре: имя → адрес (или сервер, логин, пароль) → программа → «Проверить»
+    $('f-name').dataset.next = type === 'xtream' ? 'f-server' : 'f-url';
+    $('f-url').dataset.next = 'f-epg';
+    $('f-server').dataset.next = 'f-user';
+    $('f-user').dataset.next = 'f-pass';
+    $('f-pass').dataset.next = 'f-epg';
+    $('f-epg').dataset.next = 'btn-check';
   }
   document.querySelectorAll('#scr-add .tab').forEach(b => { b.onclick = () => setType(b.dataset.type); });
 
@@ -133,7 +143,8 @@
     setType(editing ? editing.type : 'm3u');
     epgHint();
     Nav.setScope($('scr-add'), openPlaylists);
-    Nav.first();
+    // Курсор сразу на строке «Имя»; клавиатура сама не поднимается — только по OK на строке
+    Nav.focus($('f-name').closest('.fbox'));
   }
   // Поле «Программа передач» пустое — серым виден адрес программы, который провайдер вписал в сам плейлист.
   // Поле остаётся пустым, и программа берётся из плейлиста. Сменили адрес плейлиста или сервер — подсказка обычная
@@ -163,7 +174,9 @@
     return '';
   }
   // «Проверить» — загрузить плейлист, не сохраняя: сколько каналов и адрес программы из самого плейлиста
+  let checkedOk = false;
   $('btn-check').onclick = async () => {
+    checkedOk = false;
     const p = formPlaylist();
     $('add-ok').classList.add('hidden');
     $('add-error').textContent = formError(p);
@@ -175,12 +188,14 @@
       const data = await M3U.load(p, t('no_group'), n => t('channel_n', n));
       $('add-ok').textContent = t('check_ok', data.channels.length);
       if (!p.epg) epgHint(data.epgPlaylist);
+      checkedOk = true;
     } catch (e) {
       $('add-ok').classList.add('hidden');
       $('add-error').textContent = t('check_fail', errorText(e));
     } finally {
       $('btn-check').disabled = false;
-      Nav.focus($('btn-check'));
+      // Плейлист работает — курсор сразу на «Сохранить»; не работает — остаётся на «Проверить»
+      Nav.focus(checkedOk ? $('btn-save') : $('btn-check'));
     }
   };
   $('btn-save').onclick = async () => {
@@ -241,15 +256,20 @@
     $('doc-text').textContent = text;
     $('doc-text').scrollTop = 0;
     $('doc').classList.remove('hidden');
-    Nav.setScope($('doc'), () => { $('doc').classList.add('hidden'); back(); });
-    // Есть кнопки (журнал) — курсор сразу на них: «Очистить» и «OK» под рукой, листать текст — кнопкой «вверх»
+    // Есть кнопки (журнал): курсор стоит на кнопках — ◀▶ между «Очистить» и «OK», а ▲▼ листают сам журнал
+    Nav.setScope($('doc'), () => { $('doc').classList.add('hidden'); back(); }, box.children.length ? e => {
+      if (e.keyCode !== 38 && e.keyCode !== 40) return false;
+      const tx = $('doc-text');
+      tx.scrollTop += (e.keyCode === 40 ? 1 : -1) * tx.clientHeight * 0.8;
+      return true;
+    } : null);
     Nav.focus(box.lastChild || $('doc-text'));
   }
 
   // ---------- Настройки: порядок как в Android (от главного к редкому) ----------
   const LANGS = [['en', 'English'], ['ru', 'Русский'], ['he', 'עברית'], ['fr', 'Français'], ['ar', 'العربية'],
     ['it', 'Italiano'], ['ja', '日本語'], ['ko', '한국어'], ['zh', '中文']];
-  const VERSION = '0.50';
+  const VERSION = '0.51';
   // Если телевизор даёт странице не 1920 точек в ширину, вся страница уменьшается под экран — ничего не обрезается
   // Старый браузер телевизора не знает «gap» в строках (flex) — включаем запасные отступы (см. конец app.css)
   (function flexGap() {
@@ -336,7 +356,6 @@
       row.onclick = act;
       box.appendChild(row);
     });
-    $('settings-version').textContent = t('settings_version', VERSION);
     // «Назад» из настроек — туда, откуда пришли (каналы или плейлисты)
     Nav.setScope($('scr-settings'), () => (settingsBack || toPlaylists)());
     Nav.focus(box.children[focusIdx || 0]);
@@ -897,6 +916,7 @@
     cur = i;
     jumped = false;
     playingCh = c;
+    notePlay(c);
     arch = null;
     if (Radio.looks(c)) { Radio.show(c, dispName(c)); Radio.visible(false); } else Radio.hide();
     startChannel(c, c.url);
@@ -1048,6 +1068,11 @@
       el.onclick = act;
       menu.appendChild(el);
     });
+    // Номер версии — внизу меню (раньше был внизу Настроек); пультом не выбирается
+    const ver = document.createElement('div');
+    ver.className = 'version dr-version';
+    ver.textContent = t('settings_version', VERSION);
+    menu.appendChild(ver);
     menu.classList.add('hidden');
     $('guide').classList.remove('with-menu'); shiftVideo();
     $('drawer').classList.remove('hidden');
@@ -1057,18 +1082,19 @@
   }
   function drawerKeys(e) {
     const el = document.activeElement;
-    // Курсор по кругу: с последней строки вниз — на первую, с первой вверх — на последнюю
-    if ((e.keyCode === 38 || e.keyCode === 40) && el && el.classList.contains('grp') && !el.closest('#dr-menu')) {
-      const list = [...el.parentNode.querySelectorAll('.grp')];
+    // Папки: на первой и последней строке курсор останавливается (по кругу ходит только список каналов) и
+    // не перескакивает вбок в другую колонку
+    if ((e.keyCode === 38 || e.keyCode === 40) && el && el.closest('#dr-groups')) {
+      const list = [...$('dr-groups').querySelectorAll('.focusable')].filter(x => x.offsetParent !== null);
       const i = list.indexOf(el);
-      if (e.keyCode === 40 && i === list.length - 1) { Nav.focus(list[0]); return true; }
-      if (e.keyCode === 38 && i === 0) { Nav.focus(list[list.length - 1]); return true; }
+      const j = i + (e.keyCode === 40 ? 1 : -1);
+      if (i >= 0) { if (j >= 0 && j < list.length) Nav.focus(list[j]); return true; }
     }
     const inMenu = el && el.closest('#dr-menu');
     // Меню (Поиск … Настройки): ▲▼ только внутри меню — на первом и последнем пункте курсор стоит на месте,
     // а не перескакивает вправо к папкам
     if (inMenu && (e.keyCode === 38 || e.keyCode === 40)) {
-      const list = [...$('dr-menu').children];
+      const list = [...$('dr-menu').querySelectorAll('.grp')];
       const i = list.indexOf(el);
       const j = i + (e.keyCode === 40 ? 1 : -1);
       if (j >= 0 && j < list.length) Nav.focus(list[j]);
@@ -1489,20 +1515,35 @@
       el.onclick = () => { d.textContent = p.d || t('info_no_desc'); d.classList.toggle('hidden'); };
       box.appendChild(el);
     });
+    // Двойной OK на видео: программа посередине экрана (а не сбоку)
+    $('sched').classList.add('center');
     $('sched').classList.remove('hidden');
-    Nav.setScope($('sched'), () => { $('sched').classList.add('hidden'); playerScope(); });
+    Nav.setScope($('sched'), () => { $('sched').classList.add('hidden'); $('sched').classList.remove('center'); playerScope(); });
     Nav.focus(box.querySelector('.focusable'));
   }
+  // Список каналов (◀) и программа поверх видео сами уходят через минуту, если пультом ничего не нажимали
+  let panelIdle = null;
+  function armPanelIdle() {
+    clearTimeout(panelIdle);
+    panelIdle = setTimeout(() => {
+      if (screen !== 'player' || !$('guide').classList.contains('hidden')) return;
+      if (!$('side').classList.contains('hidden') && !moving && !splitPending) closeSide();
+      if (!$('sched').classList.contains('hidden') && Nav.scope() === $('sched')) { $('sched').classList.add('hidden'); $('sched').classList.remove('center'); playerScope(); }
+    }, 60000);
+  }
+  document.addEventListener('keydown', armPanelIdle, true);
   // Меню на видео (удерживать OK): смотреть рядом, звук, субтитры, программа
   function playerMenu() {
     const c = shown[cur];
+    // Порядок как просил Марк: смотреть рядом, размер экрана, программа, звук, субтитры. Меню — посередине экрана
     const items = [
       ...(canSplit() ? [{ label: t('split_watch'), act: () => splitPick() }] : []),
-      { label: t('audio_track'), act: openAudioMenu },
-      { label: t('choose_subtitles'), act: openSubsMenu },
+      { label: t('size_title'), act: () => sizeMenu(playerScope) },
       { label: t('schedule_title'), act: () => c && openSchedule(c, playerScope) },
-      { label: t('size_title'), act: () => sizeMenu(playerScope) }
+      { label: t('audio_track'), act: openAudioMenu },
+      { label: t('choose_subtitles'), act: openSubsMenu }
     ];
+    $('pick').classList.add('center');
     pick(dispName(c), items.map(i => ({ label: i.label })), i => items[i].act(), playerScope);
   }
 
@@ -1871,10 +1912,11 @@
   });
   function vodMenu() {
     const items = [
+      { label: t('size_title'), act: () => sizeMenu(vodScope) },
       { label: t('audio_track'), act: openAudioMenu },
-      { label: t('choose_subtitles'), act: openSubsMenu },
-      { label: t('size_title'), act: () => sizeMenu(vodScope) }
+      { label: t('choose_subtitles'), act: openSubsMenu }
     ];
+    $('pick').classList.add('center');
     pick(vod.titles[vod.idx], items.map(i => ({ label: i.label })), i => items[i].act(), vodScope);
   }
   const vodScope = () => playerScope();
@@ -2008,6 +2050,29 @@
 
   // ---------- Просмотр ----------
   let cur = -1, prev = -1, barTimer = null, retryTimer = null;
+  // Предыдущий канал для ▶: сам канал, его папка и плейлист (а не номер в списке — номер теряется, когда
+  // меняют папку, и ▶ тогда ничего не делал)
+  let prevCh = null, playingInfo = null;
+  const sameCh = (a, b) => !!a && !!b && (a === b || (a.name === b.name && a.url === b.url));
+  function notePlay(c) {
+    if (playingInfo && !sameCh(playingInfo.c, c)) prevCh = playingInfo;
+    playingInfo = { c, g: group, pid: pl ? pl.id : null };
+  }
+  function goPrev() {
+    const p = prevCh;
+    if (!p || !pl) return false;
+    if (p.pid !== pl.id) {
+      const other = Store.playlists().find(x => x.id === p.pid && !x.off);
+      if (!other || !Store.channels(other.id)) return false;
+      loadPlaylist(other, Store.channels(other.id));
+    }
+    if (group !== p.g) { group = p.g; setShown(inGroup(group)); }
+    let j = shown.findIndex(x => sameCh(x, p.c));
+    if (j < 0) { group = ALL; setShown(inGroup(ALL)); j = shown.findIndex(x => sameCh(x, p.c)); }
+    if (j < 0) return false;
+    play(j);
+    return true;
+  }
   // Плеер заняли чем-то другим (фильм, «Смотреть рядом», другой плейлист, запасной движок): отложенное включение
   // канала (повтор через 7 с, проверка потока, слежение за подгрузкой) отменяется, иначе оно включит канал поверх
   function cancelPending() { clearTimeout(retryTimer); clearTimeout(stallTimer); startToken++; }
@@ -2126,6 +2191,16 @@
     Player.stop();   // пока проверяется поток нового канала, старый не играет (и его обрывы не записываются на новый)
     hlsKind(url).catch(() => ({ big: false, audio: null })).then(k => {
       if (my !== startToken) return;
+      // Поток с номером сеанса в адресе (hlssid — hostingradio.ru: Like FM, DFM, Рекорд, Energy, Жара FM…): сеанс
+      // открыт нашей проверкой, и родной плеер Samsung по такому адресу получает отказ (в журнале
+      // «PLAYER_ERROR_CONNECTION_FAILED (one variant)», потом всё равно запасной плеер — лишние секунды при запуске).
+      // Такие станции сразу идут через запасной плеер (hls.js) — он сам открывает свой сеанс
+      if (k.audio && /[?&]hlssid=/i.test(k.audio) && !webEngine(c)) {
+        setWeb(c, true);
+        Store.addLog(new Date().toLocaleString(LANG) + ' — ' + c.name + '\nsession stream → hls.js');
+        Player.start(url, { web: true });
+        return;
+      }
       if (k.audio && !skipVariant) {
         // Радио: один поток в родном плеере
         onVariant = c;
@@ -2245,6 +2320,7 @@
     jumped = false;
     const c = shown[cur];
     playingCh = c;
+    notePlay(c);
     show('player');
     closeGuide();
     playerScope();
@@ -2278,13 +2354,50 @@
   // поэтому узнаём сами: в списке HLS у каждого качества записана его скорость (BANDWIDTH) и размер кадра;
   // если списка качеств нет — скачиваем последний кусочек эфира и делим его размер на длительность
   const rates = new Map();   // адрес канала → {kbps, h} или null (узнать нельзя)
+  function snapKbps(k) {
+    const std = [24, 32, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320];
+    const n = std.reduce((a, b) => (Math.abs(b - k) < Math.abs(a - k) ? b : a));
+    return Math.abs(n - k) <= n * 0.1 ? n : k;
+  }
   async function measureStream(url) {
     const get = async (u, bin) => {
       const r = await Promise.race([fetch(u, { cache: 'no-store' }), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 10000))]);
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return bin ? r.arrayBuffer() : r.text();
     };
-    if (!/m3u8/i.test(url)) return null;
+    if (!/m3u8/i.test(url)) {
+      // Радио одним потоком (Icecast/Shoutcast, mp3/aac): битрейт меряем сами, как в Android — сколько байт
+      // пришло за 4 секунды (после первой секунды: в начале сервер отдаёт запас быстрее, чем идёт эфир)
+      if (!/^https?:/i.test(url) || typeof AbortController === 'undefined') return null;
+      const ctl = new AbortController();
+      const tm = setTimeout(() => ctl.abort(), 9000);
+      try {
+        const r = await fetch(url.split('|')[0], { cache: 'no-store', signal: ctl.signal });
+        if (!r.ok || !r.body) return null;
+        const type = r.headers.get('content-type') || '';
+        if (/video|mpegurl|text|html|json/i.test(type)) return null;
+        const reader = r.body.getReader();
+        const t0 = Date.now();
+        let bytes = 0, from = 0;
+        for (;;) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          const el = Date.now() - t0;
+          if (el < 1000) continue;
+          if (!from) from = Date.now();
+          bytes += value.byteLength;
+          if (Date.now() - from >= 4000) break;
+        }
+        // Станция сама назвала битрейт (заголовок icy-br) — он точный; иначе замер, подтянутый к ближайшему
+        // обычному значению (замер 134 → 128: в потоке есть ещё служебные данные)
+        const icy = parseInt(String(r.headers.get('icy-br') || '').split(',')[0], 10);
+        if (icy > 0 && icy <= 2000) return { kbps: icy, h: 0 };
+        const ms = from ? Date.now() - from : 0;
+        const k = ms >= 2000 ? Math.round(bytes * 8 / ms) : 0;
+        return k >= 8 && k <= 2000 ? { kbps: snapKbps(k), h: 0 } : null;
+      } catch (e) { return null; }
+      finally { clearTimeout(tm); try { ctl.abort(); } catch (e) { } }
+    }
     let text = await get(url);
     let base = url;
     if (/#EXT-X-STREAM-INF/.test(text)) {
@@ -2300,7 +2413,9 @@
       const ph = Player.info().h;
       // То качество, которое сейчас показывает плеер (по размеру кадра), иначе самое высокое
       const v = (ph && vars.find(x => x.h === ph)) || vars.slice().sort((a, b) => b.bw - a.bw)[0];
-      if (v.bw) return { kbps: Math.round(v.bw / 1000), h: v.h };
+      // Радио (у качеств нет размера кадра): настоящий битрейт по кусочку эфира, а не заявленный в списке
+      const radio = vars.every(x => !x.h && x.bw && x.bw < 500000);   // все качества — только звук
+      if (v.bw && !radio) return { kbps: Math.round(v.bw / 1000), h: v.h };
       text = await get(new URL(v.uri, url).href);
       base = new URL(v.uri, url).href;
     }
@@ -2313,7 +2428,7 @@
       const dur = parseFloat(m[1]);
       if (!uri || !(dur > 0)) return null;
       const size = (await get(new URL(uri, base).href, true)).byteLength;
-      return { kbps: Math.round(size * 8 / dur / 1000), h: 0 };
+      return { kbps: snapKbps(Math.round(size * 8 / dur / 1000)), h: 0 };
     }
     return null;
   }
@@ -2321,7 +2436,9 @@
     if (!c) return null;
     if (!rates.has(c.url)) {
       rates.set(c.url, null);
-      measureStream(c.url).then(r => { rates.set(c.url, r); if (!$('bar').classList.contains('hidden')) bubbles(); }).catch(() => { });
+      // Не получилось (сайт не ответил) — через 30 секунд пробуем ещё раз, а не до выхода из программы
+      const again = () => setTimeout(() => { if (rates.get(c.url) === null) rates.delete(c.url); }, 30000);
+      measureStream(c.url).then(r => { rates.set(c.url, r); if (!r) again(); if (!$('bar').classList.contains('hidden')) bubbles(); }).catch(again);
     }
     return rates.get(c.url);
   }
@@ -2330,7 +2447,10 @@
     const i = Player.info();
     const r = vod ? null : streamRate(shown[cur]);
     const h = (r && r.h) || i.h;
-    const kbps = r ? r.kbps : (Player.native && !Player.usingWeb() ? 0 : i.kbps);
+    // Радио: битрейт звука (128, 320 кбит/с), как в Android. Если замер потока ещё не готов или не удался —
+    // берём то, что знает сам плеер
+    const live = Radio.isOn() && Player.usingWeb() && i.kbps ? snapKbps(i.kbps) : 0;   // радио: замер по кусочкам эфира
+    const kbps = live || (r && r.kbps) || (Player.native && !Player.usingWeb() && (i.w || i.h) ? 0 : i.kbps);
     const out = [];
     if (h) out.push(h >= 2000 ? '4K' : h >= 1400 ? '1440p' : h >= 1000 ? '1080p' : h >= 700 ? '720p' : h + 'p');
     if (kbps) out.push(kbps >= 1000 ? t('bitrate_mbps', (kbps / 1000).toFixed(1)) : t('bitrate_kbps', kbps));
@@ -2378,6 +2498,7 @@
 
   // Программа канала на сегодня и дальше (OK на плашке, удерживать OK, «Инфо»/«Гид»; на компьютере — G или I)
   function openSchedule(c, back) {
+    $('sched').classList.remove('center');   // полная программа — справа, как раньше
     const box = $('sched-list');
     box.innerHTML = '';
     $('sched-title').textContent = c.name;
@@ -2773,7 +2894,7 @@
       if ($('bar').classList.contains('hidden')) showBar();
       else { $('bar').classList.add('hidden'); openInfo(shown[cur]); }
     } else if (k === 37) openSide();
-    else if (k === 39) { if (prev >= 0 && prev < shown.length) play(prev); else showBar(); }
+    else if (k === 39) { if (!goPrev()) showBar(); }
   }
   function longPress(k) {
     if (k === 13 && vod) { vodMenu(); return; }

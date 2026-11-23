@@ -14,12 +14,21 @@ const Player = (() => {
   let playing = false, avBuf = false;
 
   // Окно видео: null — весь экран; иначе {x, y, w, h} в точках экрана 1920×1080 (видео в окне при телепрограмме)
+  // Видео спрятано (открыто меню): окно запоминается, а показывается снова, когда вернулись к просмотру
+  let videoHidden = false;
+  function hideVideo(on) {
+    on = !!on;
+    if (on === videoHidden) return;
+    videoHidden = on;
+    video.style.visibility = on ? 'hidden' : '';
+    if (av && playing) { try { if (on) av.setDisplayRect(0, 0, 1, 1); else av.setDisplayRect(rect ? rect.x : 0, rect ? rect.y : 0, rect ? rect.w : 1920, rect ? rect.h : 1080); } catch (e) { } }
+  }
   function setRect(r) {
     rect = r;
     const s = video.style;
     if (r) { s.position = 'absolute'; s.left = r.x + 'px'; s.top = r.y + 'px'; s.width = r.w + 'px'; s.height = r.h + 'px'; }
     else { s.position = ''; s.left = ''; s.top = ''; s.width = ''; s.height = ''; }
-    if (av && playing) { try { av.setDisplayRect(r ? r.x : 0, r ? r.y : 0, r ? r.w : 1920, r ? r.h : 1080); } catch (e) { } }
+    if (av && playing && !videoHidden) { try { av.setDisplayRect(r ? r.x : 0, r ? r.y : 0, r ? r.w : 1920, r ? r.h : 1080); } catch (e) { } }
   }
 
   // Поток не открылся или оборвался с ошибкой: плеер больше не считается играющим
@@ -73,9 +82,25 @@ const Player = (() => {
     if (k.length > 50) delete tries[k[0]];
     return false;
   }
+  // Адрес, который играет сейчас (для названий песен радио: их читают из того же списка, что и плеер,
+  // не открывая на сайте станции ещё один сеанс)
+  let curUrl = '';
+  function mediaUrl() {
+    try {
+      if (hls && hls.levels && hls.levels.length) {
+        const l = hls.levels[hls.currentLevel >= 0 ? hls.currentLevel : Math.max(0, hls.loadLevel)];
+        const u = l && (l.uri || l.url);
+        if (u) return Array.isArray(u) ? u[0] : u;
+      }
+    } catch (e) { }
+    return playing ? curUrl : '';
+  }
+  let realKbps = 0;
   function start(url, opts) {
     if (tooMany(url)) { stop(); playing = false; emit('giveup', url); return; }
     stop();
+    realKbps = 0;
+    curUrl = String(url || '').split('|')[0];
     const my = ++token;
     paused = false;
     everPlayed = false;
@@ -100,7 +125,17 @@ const Player = (() => {
       hls = new Hls({ liveSyncDurationCount: Math.max(2, Math.round(sec / 2)), maxBufferLength: sec * 6, enableWorker: true,
         startFragPrefetch: true, manifestLoadingMaxRetry: 4, levelLoadingMaxRetry: 6, fragLoadingMaxRetry: 8, nudgeMaxRetry: 10 });
       let netRetries = 0;
-      hls.on(Hls.Events.FRAG_LOADED, () => { netRetries = 0; });
+      hls.on(Hls.Events.FRAG_LOADED, (ev, d) => {
+        netRetries = 0;
+        // Настоящий битрейт, как в Android: байты скачанного кусочка / его длительность (а не то, что заявлено в списке)
+        try {
+          const f = d && d.frag, bytes = (f && f.stats && f.stats.loaded) || (d.payload && d.payload.byteLength) || 0;
+          if (f && f.duration >= 0.5 && f.duration <= 60 && bytes) {
+            const k = bytes * 8 / f.duration / 1000;
+            if (k >= 8) realKbps = realKbps ? realKbps * 0.7 + k * 0.3 : k;
+          }
+        } catch (e) { }
+      });
       hls.subtitleDisplay = true;
       hls.on(Hls.Events.ERROR, (ev, d) => {
         if (!d.fatal) return;
@@ -109,6 +144,16 @@ const Player = (() => {
         else if (d.type === Hls.ErrorTypes.NETWORK_ERROR && everPlayed && netRetries++ < 5) setTimeout(() => { if (my === token && hls) hls.startLoad(); }, 1000);
         else if (guessedFmt === url && !everPlayed) { fmtSet(url, 'ts'); start(url, opts); }
         else fail('HLS: ' + (d.details || d.type) + (d.response && d.response.code ? ' (' + d.response.code + ')' : ''));
+      });
+      // Радио «только звук» с несколькими качествами: сразу лучшее и без переключений. Качества у таких станций
+      // разного вида (AAC, HE-AAC), и при переключении между ними звук на телевизоре на миг спотыкается
+      hls.on(Hls.Events.MANIFEST_PARSED, (ev, d) => {
+        const lv = (d && d.levels) || [];
+        if (lv.length > 1 && lv.every(l => !l.width && !l.height && !l.videoCodec)) {
+          let top = 0;
+          lv.forEach((l, i) => { if ((l.bitrate || 0) > (lv[top].bitrate || 0)) top = i; });
+          try { hls.currentLevel = top; } catch (e) { }
+        }
       });
       hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, () => emit('tracks'));
       hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, () => emit('tracks'));
@@ -160,7 +205,7 @@ const Player = (() => {
     try {
       av.open(url);
       if (nextUa) { try { av.setStreamingProperty('USER_AGENT', nextUa); } catch (e) { } }
-      av.setDisplayRect(rect ? rect.x : 0, rect ? rect.y : 0, rect ? rect.w : 1920, rect ? rect.h : 1080);
+      if (videoHidden) av.setDisplayRect(0, 0, 1, 1); else av.setDisplayRect(rect ? rect.x : 0, rect ? rect.y : 0, rect ? rect.w : 1920, rect ? rect.h : 1080);
       applySize();
       // Запас перед началом и после «подгрузки»: у Samsung по умолчанию после подгрузки всего ~4 с —
       // это один кусочек эфира, и поток снова встаёт. После подгрузки набираем вдвое больше
@@ -243,13 +288,22 @@ const Player = (() => {
             (x.extra_info || '').replace(/"?(\w+)"?\s*:\s*"([^"]*)"/g, (m, k, v) => { o[k] = v; });
           }
           if (x.type === 'VIDEO') { r.w = +o.Width || 0; r.h = +o.Height || 0; r.kbps = Math.round((+o.Bit_rate || 0) / 1000); }
-          if (x.type === 'AUDIO') r.ch = +o.channels || 0;
+          if (x.type === 'AUDIO') {
+            r.ch = +o.channels || 0;
+            // Радио (кадра нет): битрейт звука, если телевизор его сообщает
+            const ab = Math.round((+o.bit_rate || +o.Bit_rate || +o.bitrate || 0) / 1000);
+            if (ab && !r.kbps) r.akbps = ab;
+          }
         });
+        if (!r.w && !r.h && r.akbps) r.kbps = r.akbps;
+        delete r.akbps;
       } else {
         r.w = video.videoWidth; r.h = video.videoHeight;
         if (hls) {
           const l = hls.levels && hls.levels[hls.currentLevel];
           if (l && l.bitrate) r.kbps = Math.round(l.bitrate / 1000);
+          // Радио (кадра нет): настоящий битрейт по скачанным кусочкам
+          if (!r.w && !r.h && realKbps) r.kbps = Math.round(realKbps);
           const a = hls.audioTracks && hls.audioTracks[hls.audioTrack];
           if (a && a.channels) r.ch = parseInt(a.channels, 10) || 0;
         } else if (ts) {
@@ -391,5 +445,5 @@ const Player = (() => {
     }
   }
 
-  return { av: !!av, lg, everPlayed: () => everPlayed, splitState, usingWeb: () => engineWeb, pause, pos, duration, seekTo, setSize, isPaused: () => paused, split, splitStop, setLeveler, info, start, setUa, stop, on, audioTracks, setAudio, subTracks, setSub, setBuffer, setRect, isPlaying: () => playing, native: !!av || lg };
+  return { hideVideo, mediaUrl, av: !!av, lg, everPlayed: () => everPlayed, splitState, usingWeb: () => engineWeb, pause, pos, duration, seekTo, setSize, isPaused: () => paused, split, splitStop, setLeveler, info, start, setUa, stop, on, audioTracks, setAudio, subTracks, setSub, setBuffer, setRect, isPlaying: () => playing, native: !!av || lg };
 })();

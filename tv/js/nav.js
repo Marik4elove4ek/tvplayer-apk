@@ -23,14 +23,33 @@ const Nav = (() => {
     el.scrollIntoView({ block: 'center', inline: 'nearest' });
   }
 
+  // Список с прокруткой, в котором стоит курсор (ближайший такой родитель внутри открытого окна)
+  function listOf(el) {
+    for (let p = el.parentElement; p && p !== scope && p !== document.body; p = p.parentElement) {
+      const o = getComputedStyle(p).overflowY;
+      if (o === 'auto' || o === 'scroll') return p;
+    }
+    return null;
+  }
   function move(dir) {
     const cur = document.activeElement;
     const all = items();
     if (!all.includes(cur)) { focus(all[0]); return; }
     const a = cur.getBoundingClientRect();
+    // ▲▼ в списке (колонка с прокруткой): курсор ходит только внутри него. У начала и конца списка он
+    // останавливается, а не перескакивает в соседнюю колонку; выйти можно только к тому, что прямо под
+    // списком или над ним (кнопки), но не вбок
+    const col = (dir === 'up' || dir === 'down') ? listOf(cur) : null;
+    const cr = col && col.getBoundingClientRect();
     let best = null, bestScore = Infinity;
     for (const el of all) {
       if (el === cur) continue;
+      if (col && !col.contains(el)) {
+        const b = el.getBoundingClientRect();
+        const over = Math.min(b.right, cr.right) - Math.max(b.left, cr.left);
+        if (over < Math.min(b.width, cr.width) * 0.5) continue;
+        if (dir === 'down' ? b.top < cr.bottom - 2 : b.bottom > cr.top + 2) continue;
+      }
       const b = el.getBoundingClientRect();
       // Сдвиг вбок считаем между краями, а не центрами: широкое поле под узкой кнопкой —
       // это «прямо вниз», а не «далеко вбок»
@@ -51,7 +70,10 @@ const Nav = (() => {
   function leaveInput(el, next) {
     el.blur();
     focus(el.closest('.fbox') || el);
-    if (next) move('down');
+    // «Готово» — к следующему полю; у поля может быть задано, куда именно (data-next — id поля или кнопки)
+    const to = next && el.dataset.next && document.getElementById(el.dataset.next);
+    if (to) focus(to.closest('.fbox') || to);
+    else if (next) move('down');
   }
 
   document.addEventListener('keydown', e => {

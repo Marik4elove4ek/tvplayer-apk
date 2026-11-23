@@ -175,7 +175,10 @@ const Radio = (() => {
     box.classList.remove('hidden');
     if (!on) { on = true; raf = requestAnimationFrame(frame); }
     clearTimeout(songTimer);
-    pollSong(token);
+    media = ''; noTags = 0;
+    // Первый раз — через 3 секунды: к этому времени плеер уже открыл свой список, и песню читаем из него
+    const my = token;
+    songTimer = setTimeout(() => pollSong(my), 3000);
   }
   function hide() {
     token++;
@@ -242,16 +245,42 @@ const Radio = (() => {
     else if (cover && cover.startsWith('/')) art = source.slice(0, source.indexOf('/', source.indexOf('://') + 3)) + cover;
     return { title, artist: artist || '', art };
   }
-  // Пометки списка HLS: многие станции пишут исполнителя и название туда (EXT-X-DATERANGE)
+  // Пометки списка HLS: многие станции пишут исполнителя и название туда (EXT-X-DATERANGE).
+  // Раньше каждые 20 секунд заново открывался главный список станции, а у hostingradio.ru (Like FM, Рекорд…)
+  // каждое такое открытие — новый сеанс. Сеансы копились, сайт отвечал «Too many concurrent requests», и сам
+  // эфир на телевизоре (тот же адрес в интернете) запускался долго и спотыкался раз в 20 секунд.
+  // Теперь читаем тот же список, который уже играет плеер; если плеер играет главный список — один раз
+  // выбираем из него поток и дальше читаем только его (один постоянный сеанс, а не новый каждые 20 секунд)
+  let media = '', noTags = 0;
+  async function getText(u) {
+    const r = await fetch(u, { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return { text: await r.text(), url: r.url || u };
+  }
   async function hlsSong(url) {
-    let text = await (await fetch(url, { cache: 'no-store' })).text();
-    if (/#EXT-X-STREAM-INF/.test(text)) {
-      const line = text.split(/\r?\n/).find(l => l && !l.startsWith('#'));
-      if (!line) return null;
-      text = await (await fetch(new URL(line.trim(), url).href, { cache: 'no-store' })).text();
+    const ok = r => r && /^#EXTM3U/.test(r.text) && !/#EXT-X-STREAM-INF/.test(r.text);   // список с кусочками эфира
+    const tryGet = async u => { try { return await getText(u); } catch (e) { return null; } };
+    let r = null, master = null;
+    const own = typeof Player !== 'undefined' && Player.mediaUrl ? Player.mediaUrl() : '';
+    if (own && /^https?:/i.test(own)) {
+      const x = await tryGet(own);
+      if (ok(x)) r = x;
+      else if (x && /#EXT-X-STREAM-INF/.test(x.text)) master = x;
     }
-    let best = null, first = null;
-    text.split(/\r?\n/).filter(l => l.startsWith('#EXT-X-DATERANGE')).forEach(tag => {
+    if (!r && media) { const x = await tryGet(media); if (ok(x)) r = x; else media = ''; }
+    if (!r) {
+      if (!master) master = await getText(url);
+      if (!/#EXT-X-STREAM-INF/.test(master.text)) r = master;
+      else {
+        const line = master.text.split(/\r?\n/).find(l => l && !l.startsWith('#'));
+        if (!line) return null;
+        media = new URL(line.trim(), master.url).href;
+        r = await getText(media);
+      }
+    }
+    let best = null, first = null, tags = 0;
+    r.text.split(/\r?\n/).filter(l => l.startsWith('#EXT-X-DATERANGE')).forEach(tag => {
+      tags++;
       const get = k => ((new RegExp(k + '="([^"]*)"')).exec(tag) || [])[1] || '';
       const title = get('X-TITLE').trim();
       if (!title) return;
@@ -260,21 +289,26 @@ const Radio = (() => {
       const start = Date.parse(get('START-DATE'));
       if (!start || start <= Date.now()) best = s;
     });
+    noTags = tags ? 0 : noTags + 1;
     return best || first;
   }
   async function pollSong(my) {
     if (my !== token || !ch) return;
-    let s = null;
+    let s = null, more = true;
     try {
       const site = siteSource(ch.url);
       if (site) {
         const src = site.replace('{ts}', Math.floor(Date.now() / 1000));
         s = parseSite(await (await fetch(src, { cache: 'no-store' })).json(), src);
-      } else if (/m3u8/i.test(ch.url)) s = await hlsSong(ch.url);
+      } else if (/m3u8/i.test(ch.url)) {
+        s = await hlsSong(ch.url);
+        // В списке станции песен нет вовсе (три раза подряд) — больше его не читаем
+        if (noTags >= 3) more = false;
+      } else more = false;
     } catch (e) { }
     if (my !== token) return;
     if (s) setSong(s);
-    songTimer = setTimeout(() => pollSong(my), 20000);
+    if (more) songTimer = setTimeout(() => pollSong(my), 20000);
   }
 
   return { looks, show, hide, visible, isOn: () => !!ch };
