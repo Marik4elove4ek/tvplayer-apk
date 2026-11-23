@@ -19,10 +19,14 @@ const Radio = (() => {
   }
 
   // Картинка через fetch → свой адрес: так её цвета можно прочитать (картинка с чужого сайта иначе «закрыта»)
+  let lastBlob = '';
   async function ownImage(url) {
     const r = await fetch(url);
     if (!r.ok) throw new Error(r.status);
     const u = URL.createObjectURL(await r.blob());
+    // Прежняя обложка больше не нужна — освобождаем её память (иначе за вечер радио копятся десятки картинок)
+    const old = lastBlob; lastBlob = u;
+    if (old) setTimeout(() => { try { URL.revokeObjectURL(old); } catch (e) { } }, 5000);
     const img = new Image();
     await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = u; });
     return img;
@@ -83,6 +87,8 @@ const Radio = (() => {
   function rgba(c, a) { return `rgba(${c[0]},${c[1]},${c[2]},${a})`; }
   function frame(nowMs) {
     if (!on) return;
+    // Экран радио спрятан (поверх телепрограмма): не рисуем, только изредка проверяем, не вернулся ли он
+    if (box.classList.contains('hidden')) { setTimeout(() => { raf = requestAnimationFrame(frame); }, 500); return; }
     const w = canvas.width = 960, h = canvas.height = 540;   // половинный размер — телевизору легче
     const t = (nowMs - t0) / 1000;
     // «Музыка»: мягкая пульсация, как средний уровень песни

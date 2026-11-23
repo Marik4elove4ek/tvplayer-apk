@@ -11,7 +11,7 @@ const Player = (() => {
   const lg = !av && /Web0S|webOS/i.test(navigator.userAgent);
   const handlers = {};
   let hls = null, ts = null, token = 0, avSub = -1, buffer = 'medium', rect = null;
-  let playing = false, avBuf = false;
+  let playing = false, avBuf = false, opening = false;   // opening: родной плеер Samsung ещё открывает поток (prepareAsync)
 
   // Окно видео: null — весь экран; иначе {x, y, w, h} в точках экрана 1920×1080 (видео в окне при телепрограмме)
   // Видео спрятано (открыто меню): окно запоминается, а показывается снова, когда вернулись к просмотру
@@ -32,7 +32,7 @@ const Player = (() => {
   }
 
   // Поток не открылся или оборвался с ошибкой: плеер больше не считается играющим
-  function fail(msg) { playing = false; emit('error', msg); }
+  function fail(msg) { playing = false; opening = false; emit('error', msg); }
   function emit(name, arg) { (handlers[name] || []).forEach(f => { try { f(arg); } catch (e) { } }); }
   function on(name, f) { (handlers[name] = handlers[name] || []).push(f); }
   function showSub(text) { subBox.textContent = text || ''; subBox.classList.toggle('hidden', !text); }
@@ -44,6 +44,7 @@ const Player = (() => {
   function stop() {
     token++;
     playing = false;
+    opening = false;
     avBuf = false;
     showSub('');
     splitStop();
@@ -59,7 +60,7 @@ const Player = (() => {
   // с которыми родной плеер не справляется (часть радио HLS обрывается через 10–20 секунд)
   let engineWeb = false;
   // Формат потока без «m3u8» в адресе: догадка по адресу и память о том, что подошло (localStorage lupo.fmt)
-  let guessedFmt = null;
+  let guessedFmt = null, triedTs = null;
   function fmtGet(u) { try { const v = JSON.parse(localStorage.getItem('lupo.fmt') || '{}')[u]; return v === 'hls' || v === 'ts' ? v : null; } catch (e) { return null; } }
   function fmtSet(u, v) { try { const m = JSON.parse(localStorage.getItem('lupo.fmt') || '{}'); if (m[u] === v) return; m[u] = v; const k = Object.keys(m); if (k.length > 600) delete m[k[0]]; localStorage.setItem('lupo.fmt', JSON.stringify(m)); } catch (e) { } }
   function fmtGuessHls(u) {
@@ -116,7 +117,9 @@ const Player = (() => {
     }
     // Адрес без «m3u8» и без расширения (ritsatv.ru/oklive2/…) — почти всегда HLS: пробуем сразу его, а не после ошибки.
     // Запомненный формат канала (что подошло раньше) — первым; не подошёл HLS — один раз пробуем как MPEG-TS
-    const mem = fmtGet(url);
+    // tryTs — один раз попробовать как MPEG-TS, не запоминая (HLS не открылся из-за сети — это ещё не значит, что канал TS)
+    const mem = opts && opts.tryTs ? 'ts' : fmtGet(url);
+    triedTs = opts && opts.tryTs ? url : null;
     guessedFmt = !/m3u8/i.test(url) && (mem === 'hls' || (!mem && fmtGuessHls(url))) ? url : null;
     const isHls = /m3u8/i.test(url) || mem === 'hls' || (!mem && fmtGuessHls(url));
     const isTs = !isHls && (mem === 'ts' || /\.ts(\?|$)/i.test(url) || /\/live\/[^/]+\/[^/]+\/\d+(\?|$)/i.test(url));
@@ -142,7 +145,11 @@ const Player = (() => {
         if (d.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
         // Сеть моргнула — продолжаем загрузку сами (до пяти раз подряд), а не показываем ошибку
         else if (d.type === Hls.ErrorTypes.NETWORK_ERROR && everPlayed && netRetries++ < 5) setTimeout(() => { if (my === token && hls) hls.startLoad(); }, 1000);
-        else if (guessedFmt === url && !everPlayed) { fmtSet(url, 'ts'); start(url, opts); }
+        else if (guessedFmt === url && !everPlayed) {
+          // Список не разобрался (это не HLS) — запоминаем TS; сбой сети — пробуем TS только в этот раз, память не трогаем
+          if (/ParsingError/i.test(d.details || '')) { fmtSet(url, 'ts'); start(url, opts); }
+          else start(url, Object.assign({}, opts, { tryTs: true }));
+        }
         else fail('HLS: ' + (d.details || d.type) + (d.response && d.response.code ? ' (' + d.response.code + ')' : ''));
       });
       // Радио «только звук» с несколькими качествами: сразу лучшее и без переключений. Качества у таких станций
@@ -172,7 +179,7 @@ const Player = (() => {
   }
   video.addEventListener('error', () => { if ((!av || engineWeb) && !hls && !ts && video.error) fail('video: ' + (video.error.message || video.error.code)); });
   video.addEventListener('loadedmetadata', () => { if (!hls) emit('tracks'); });
-  video.addEventListener('playing', () => { everPlayed = true; if (guessedFmt && hls) fmtSet(guessedFmt, 'hls'); if (lg && avBuf) { avBuf = false; emit('buffering', false); } emit('playing'); });
+  video.addEventListener('playing', () => { everPlayed = true; if (guessedFmt && hls) fmtSet(guessedFmt, 'hls'); if (triedTs && ts) { fmtSet(triedTs, 'ts'); triedTs = null; } if (lg && avBuf) { avBuf = false; emit('buffering', false); } emit('playing'); });
   video.addEventListener('waiting', () => { if (lg && !engineWeb && playing && everPlayed) { avBuf = true; emit('buffering', true); } });
   // Родной плеер Samsung «застыл» молча (так бывает на радио: звук пропал, а плеер ни о чём не сообщает):
   // время показа не идёт 8 секунд — сообщаем программе, она включит канал через запасной плеер
@@ -202,6 +209,7 @@ const Player = (() => {
   // ---------- Samsung AVPlay ----------
   function startAv(url, my) {
     document.documentElement.classList.add('av-on');
+    opening = true;
     try {
       av.open(url);
       if (nextUa) { try { av.setStreamingProperty('USER_AGENT', nextUa); } catch (e) { } }
@@ -221,7 +229,7 @@ const Player = (() => {
       });
       av.prepareAsync(() => {
         if (my !== token) return;
-        try { av.play(); playing = true; everPlayed = true; } catch (e) { fail('AVPlay play: ' + (e.message || e.name || e)); return; }
+        try { av.play(); playing = true; opening = false; everPlayed = true; } catch (e) { fail('AVPlay play: ' + (e.message || e.name || e)); return; }
         emit('playing');
         // Дорожки доступны только во время показа
         setTimeout(() => { if (my === token) emit('tracks'); }, 600);
@@ -378,8 +386,10 @@ const Player = (() => {
     if (video2) { try { video2.remove(); } catch (e) { } video2 = null; }
     document.documentElement.classList.remove('split-web');
     video.muted = false;
-    const s = video.style;
-    s.position = ''; s.left = ''; s.top = ''; s.width = ''; s.height = '';
+    // Место видео после «рядом»: если задано окошко (сетка программы) — оно остаётся, иначе весь экран
+    const s = video.style, r = rect;
+    if (r) { s.position = 'absolute'; s.left = r.x + 'px'; s.top = r.y + 'px'; s.width = r.w + 'px'; s.height = r.h + 'px'; }
+    else { s.position = ''; s.left = ''; s.top = ''; s.width = ''; s.height = ''; }
   }
   function avSplitPlayer(p, u, i, my, res) {
     p.open(u);
@@ -445,5 +455,5 @@ const Player = (() => {
     }
   }
 
-  return { hideVideo, mediaUrl, av: !!av, lg, everPlayed: () => everPlayed, splitState, usingWeb: () => engineWeb, pause, pos, duration, seekTo, setSize, isPaused: () => paused, split, splitStop, setLeveler, info, start, setUa, stop, on, audioTracks, setAudio, subTracks, setSub, setBuffer, setRect, isPlaying: () => playing, native: !!av || lg };
+  return { hideVideo, mediaUrl, av: !!av, lg, everPlayed: () => everPlayed, splitState, usingWeb: () => engineWeb, pause, pos, duration, seekTo, setSize, isPaused: () => paused, split, splitStop, setLeveler, info, start, setUa, stop, on, audioTracks, setAudio, subTracks, setSub, setBuffer, setRect, isPlaying: () => playing, isOpening: () => opening, native: !!av || lg };
 })();

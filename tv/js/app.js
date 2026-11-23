@@ -269,7 +269,7 @@
   // ---------- Настройки: порядок как в Android (от главного к редкому) ----------
   const LANGS = [['en', 'English'], ['ru', 'Русский'], ['he', 'עברית'], ['fr', 'Français'], ['ar', 'العربية'],
     ['it', 'Italiano'], ['ja', '日本語'], ['ko', '한국어'], ['zh', '中文']];
-  const VERSION = '0.54';
+  const VERSION = '0.55';
   // Если телевизор даёт странице не 1920 точек в ширину, вся страница уменьшается под экран — ничего не обрезается
   // Старый браузер телевизора не знает «gap» в строках (flex) — включаем запасные отступы (см. конец app.css)
   (function flexGap() {
@@ -704,7 +704,7 @@
       }
       else { channels = noAdult(fresh.channels); setShown(inGroup(group)); Epg.open(pl.id, fresh.epg || [], channels); }
     } catch (e) {
-      if (!data && pl && pl.id === p.id) toast(t('load_error') + ' ' + errorText(e));
+      if (!data && pl && pl.id === p.id) toast(t('load_error', errorText(e)).split('\n')[0]);
     } finally { plLoading.delete(p.id); }
   }
   const plLoading = new Set();
@@ -745,7 +745,7 @@
 
   // autoplay — при старте программы сразу включить последний канал на весь экран
   function openGuide(p, data, autoplay) {
-    if (!p) return openPlaylists();
+    if (!p) return openPlaylists(undefined, null);   // открытый плейлист удалён: «Назад» из плейлистов больше не ведёт в Настройки (не было круга)
     show('player');
     const fresh = !pl || pl.id !== p.id || data || !channels.length;
     if (fresh) loadPlaylist(p, data);
@@ -1132,15 +1132,18 @@
   // «Обновить»: заново скачать плейлист и программу передач
   async function refreshAll() {
     if (!pl) return;
+    const p0 = pl;   // плейлист, с которого начали: пока он качается, на экране могли открыть другой
     toast(t('refreshing'));
     try {
-      const fresh = await M3U.load(pl, t('no_group'), n => t('channel_n', n));
-      Store.saveChannels(pl.id, fresh);
+      const fresh = await M3U.load(p0, t('no_group'), n => t('channel_n', n));
+      Store.saveChannels(p0.id, fresh);
+      if (!pl || pl.id !== p0.id) { toast(t('refreshed')); return; }
       channels = noAdult(fresh.channels);
       setShown(inGroup(group));
-      Epg.reload(pl.id, fresh.epg || [], channels);   // программа скачивается заново в фоне
+      Epg.reload(p0.id, fresh.epg || [], channels);   // программа скачивается заново в фоне
       toast(t('refreshed'));
     } catch (e) { toast(t('refresh_failed', errorText(e))); }
+    if (!pl || pl.id !== p0.id) return;
     renderGuide();
     guideScope();
   }
@@ -1192,9 +1195,15 @@
     });
   }
   // ---------- Серверы провайдера (как в Android, SpeedTestActivity): во всех включённых плейлистах ----------
+  // Запрос с пределом времени на всё: и на ответ, и на само скачивание (раньше зависшее скачивание держало тест вечно)
   function tget(u, ms, bin) {
-    return Promise.race([fetch(u, { cache: 'no-store' }), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms || 6000))])
+    const ctl = window.AbortController ? new AbortController() : null;
+    const lim = ms || 6000;
+    let tm = null;
+    const late = new Promise((_, rej) => { tm = setTimeout(() => { try { if (ctl) ctl.abort(); } catch (e) { } rej(new Error('timeout')); }, lim); });
+    const work = fetch(u, ctl ? { cache: 'no-store', signal: ctl.signal } : { cache: 'no-store' })
       .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return bin ? r : r.text().then(x => ({ text: x, url: r.url })); });
+    return Promise.race([work, late]).then(v => { if (!bin) clearTimeout(tm); return v; }, e => { clearTimeout(tm); try { if (ctl) ctl.abort(); } catch (e2) { } throw e; });
   }
   // Список кусочков HLS: адрес списка и адреса кусочков (у главного списка — первое качество)
   async function hlsSegments(url) {
@@ -1306,6 +1315,8 @@
         }
       } else {
         const ctl = new AbortController();
+        // Поток молчит (ни ответа, ни данных) — через 12 с обрываем, чтобы тест шёл дальше
+        const guard = setTimeout(() => { try { ctl.abort(); } catch (e) { } }, 12000);
         const r = await fetch(sv.url, { signal: ctl.signal });
         const rd = r.body.getReader();
         const s0 = performance.now();
@@ -1316,6 +1327,7 @@
           gauge(bytes * 8 / ((performance.now() - s0) / 1000) / 1e6);
         }
         ms = performance.now() - s0;
+        clearTimeout(guard);
         try { ctl.abort(); } catch (e) { }
         atLeast = true;   // живой поток идёт с его собственной скоростью — сервер может больше
       }
@@ -1456,19 +1468,32 @@
       setTimeout(then, 0);
     }, back);
   }
+  let pinFails = 0, pinLockUntil = 0;
   function checkPin(then, back) {
     if (!Store.pin()) return then();
     inputDialog(t('pin_enter'), '', true, (v, err) => {
-      if (v !== Store.pin()) { err(t('pin_wrong')); return false; }
+      // Подбор кода: после пяти неверных попыток подряд — минута ожидания
+      if (Date.now() < pinLockUntil) { err(t('pin_wait', Math.ceil((pinLockUntil - Date.now()) / 1000))); return false; }
+      if (v !== Store.pin()) {
+        if (++pinFails >= 5) { pinFails = 0; pinLockUntil = Date.now() + 60000; err(t('pin_wait', 60)); }
+        else err(t('pin_wrong'));
+        return false;
+      }
+      pinFails = 0;
       setTimeout(then, 0);
     }, back);
   }
 
   // ---------- Меню канала (удерживать OK на канале): избранное, переместить, переименовать, PIN ----------
   function chMenu(c, back, opts) {
-    const items = [
-      { label: t(isFav(c) ? 'info_fav_remove' : 'info_fav_add'), act: () => { toggleFav(c); back(); } }
-    ];
+    const items = [];
+    // Список каналов поверх видео (◀): как раньше — смотреть рядом, избранное, звук, субтитры, PIN-код
+    if (opts && opts.split && canSplit() && c !== shown[cur]) items.push({ label: t('split_watch'), act: () => opts.split() });
+    items.push({ label: t(isFav(c) ? 'info_fav_remove' : 'info_fav_add'), act: () => { toggleFav(c); back(); } });
+    if (opts && opts.tracks) {
+      items.push({ label: t('audio_track'), act: () => { closeSide(); openAudioMenu(); } });
+      items.push({ label: t('choose_subtitles'), act: () => { closeSide(); openSubsMenu(); } });
+    }
     if (opts && opts.move && isFav(c)) items.push({ label: t('move'), act: () => opts.move() });
     items.push({ label: t('rename_channel'), act: () => inputDialog(t('rename_title'), dispName(c), false, v => {
       const m = Store.renames();
@@ -1996,7 +2021,10 @@
     const k = e.keyCode;
     if (k === 38 || k === 427 || k === 40 || k === 428) {
       let j = split;
-      do { j = (j + (k === 38 || k === 427 ? 1 : -1) + splitList.length) % splitList.length; } while (splitList[j] === shown[cur] && splitList.length > 1);
+      // Листание второй половины: свой же канал и каналы под PIN-кодом пропускаются
+      let guard = splitList.length;
+      do { j = (j + (k === 38 || k === 427 ? 1 : -1) + splitList.length) % splitList.length; } while (guard-- > 0 && (splitList[j] === shown[cur] || needsPin(splitList[j])) && splitList.length > 1);
+      if (needsPin(splitList[j])) return true;
       splitStart(splitList, j, splitMode);
       return true;
     }
@@ -2100,9 +2128,14 @@
   // канала (повтор через 7 с, проверка потока, слежение за подгрузкой) отменяется, иначе оно включит канал поверх
   function cancelPending() { clearTimeout(retryTimer); clearTimeout(stallTimer); startToken++; }
   // Канал не пошёл за 7 с (бывает при запуске программы) — включаем его ещё раз сами
-  function armRetry(c, url) {
+  // Медленный канал, который плеер ещё открывает, не трогаем: ждём до 20 с и только тогда включаем заново
+  function armRetry(c, url, late) {
     clearTimeout(retryTimer);
-    retryTimer = setTimeout(() => { if (shown[cur] === c && !vod && split < 0 && screen === 'player' && !Player.isPlaying()) startChannel(c, url); }, 7000);
+    retryTimer = setTimeout(() => {
+      if (!(shown[cur] === c && !vod && split < 0 && screen === 'player' && !Player.isPlaying())) return;
+      if (!late && Player.isOpening && Player.isOpening()) return armRetry(c, url, true);
+      startChannel(c, url);
+    }, late ? 13000 : 7000);
   }
 
   // ---------- Архив передач ----------
@@ -2247,8 +2280,21 @@
     if (reconnects.length >= 3) { reconnects = []; return playError(why + ' (3×)'); }
     reconnects.push(now);
     // Архив продолжается с того места, где оборвался, а не с начала передачи
-    if (arch) { const at = archPos(); play(cur, { p: arch.p, from: at }); return; }
+    if (arch) { archResume(archPos()); return; }
     startChannel(c, streamUrl(c));
+  }
+  // Архив оборвался: открываем поток заново с того же места (at) или эфир (at пуст), не трогая то, что на экране —
+  // открытое меню, список или диалог остаются (раньше обрыв закрывал их и «выкидывал» из меню)
+  function archResume(at) {
+    const c = shown[cur];
+    if (!c) return;
+    if (at) arch = { p: arch.p, from: at };
+    else { arch = null; clearTimeout(seekTimer); pendingSeek = 0; }
+    $('pl-spinner').classList.remove('hidden');
+    const url = streamUrl(c);
+    startChannel(c, url);
+    armRetry(c, url);
+    if (!$('bar').classList.contains('hidden')) fillBar();
   }
   Player.on('buffering', on => {
     clearTimeout(stallTimer);
@@ -2260,8 +2306,8 @@
     if (vod || screen !== 'player' || cur < 0) return;
     if (!arch) return reconnect('stream ended');
     const at = archPos();
-    if (at < arch.p.e - 60000 && at < Date.now() - 60000) play(cur, { p: arch.p, from: at });
-    else play(cur);
+    if (at < arch.p.e - 60000 && at < Date.now() - 60000) archResume(at);
+    else archResume(0);
   });
 
   Player.on('error', playError);
@@ -2645,6 +2691,13 @@
       // Второй канал для «Смотреть рядом»
       splitPending = false;
       const list = sideShown.slice();
+      const second = list[i];
+      // Канал под PIN-кодом рядом открывается только после кода (раньше «рядом» показывал его без кода)
+      if (second && second !== shown[cur] && needsPin(second)) {
+        const back = Nav.state();
+        return checkPin(() => { unlocked.add(favKey(second)); unlockedGroups.add(groupKey(second.group, second._pl)); closeSide(); splitStart(list, i); },
+          () => { splitPending = true; back(); });
+      }
       closeSide();
       if (list[i] === shown[cur]) { playerScope(); return; }
       splitStart(list, i);
@@ -2722,7 +2775,7 @@
           if (!Store.channels(p.id)) {
             toast(t('refreshing'));
             try { Store.saveChannels(p.id, await M3U.load(p, t('no_group'), n => t('channel_n', n))); }
-            catch (e) { toast(t('load_error') + ' ' + errorText(e)); return; }
+            catch (e) { toast(t('load_error', errorText(e)).split('\n')[0]); return; }
           }
           sideOther = { p, g };
           hideSideGroups();
@@ -2751,10 +2804,21 @@
       const i = el._i;
       const again = () => { sideScope(); renderSide(false); Nav.focus(sideRow(Math.min(i, sideShown.length - 1))); };
       return holdOk(e, () => sidePlay(i), () => {
-        // В папке «Избранное» — меню (убрать, переместить, переименовать, PIN); в остальных папках канал сразу добавляется в избранное
-        if (!sideOther && sideGroup === FAV) chMenu(sideShown[i], again, { move: () => startMove(sideShown[i]) });
-        else { toggleFav(sideShown[i]); again(); }
+        // Удерживать OK на канале — меню: смотреть рядом, избранное, звук, субтитры, переименовать, PIN-код на канал
+        // (в «Избранном» ещё и «Переместить»)
+        const c = sideShown[i];
+        if (!c) return again();
+        chMenu(c, again, {
+          split: () => { splitPending = true; sidePlay(i); },
+          tracks: true,
+          move: !sideOther && sideGroup === FAV ? () => startMove(c) : null
+        });
       });
+    }
+    // Удерживать OK на папке — PIN-код на папку (как в меню папок у телепрограммы)
+    if (e.keyCode === 13 && el && el._g !== undefined && el._pid && el.closest('#side-groups')) {
+      const pid = el._pid;
+      return holdOk(e, () => el.click(), () => groupMenu(el._g, pid, () => { sideScope(); openSideGroups(pid); }));
     }
     // Список каналов по кругу: с последнего вниз — на первый, с первого вверх — на последний
     if ((e.keyCode === 38 || e.keyCode === 40) && el && el.classList.contains('ch') && el.closest('#side-list')) {

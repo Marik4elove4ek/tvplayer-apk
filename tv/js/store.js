@@ -57,6 +57,16 @@ const Store = (() => {
       });
     } catch (e) { }
   }
+  // Журнал не хранит логин и пароль подписки: в адресах они заменяются звёздочками
+  function hideSecrets(line) {
+    try {
+      return String(line)
+        .replace(/(\/\/)[^\/\s:@]+:[^\/\s@]+@/g, '$1***:***@')
+        .replace(/(\/(?:live|movie|series|timeshift)\/)[^\/\s]+\/[^\/\s]+\//gi, '$1***/***/')
+        .replace(/([?&](?:username|user|login|password|pass|pwd|token|key|auth)=)[^&\s|]+/gi, '$1***')
+        .replace(/(https?:\/\/[^\/\s]+\/)([^\/\s.]{3,})\/([^\/\s.]{3,})\/(\d+(?:\.ts|\.m3u8)?)(?=$|[\s?|])/gm, '$1***/***/$4');
+    } catch (e) { return line; }
+  }
   return {
     playlists: () => get('playlists', []),
     savePlaylists: l => set('playlists', l),
@@ -114,8 +124,8 @@ const Store = (() => {
     // плеер, скачал обновление, перешёл в режим экономии памяти…) ошибками не являются: они пишутся отдельно
     // (addNote) и в журнале не показываются. Старые такие записи, сделанные раньше, журнал тоже не показывает
     log: () => get('log', []).filter(x => !NOTE.test(x)),
-    addLog: line => { const l = get('log', []); l.unshift(line); set('log', l.slice(0, 100)); },
-    addNote: line => { const l = get('note', []); l.unshift(line); set('note', l.slice(0, 100)); },
+    addLog: line => { const l = get('log', []); l.unshift(hideSecrets(line)); set('log', l.slice(0, 100)); },
+    addNote: line => { const l = get('note', []); l.unshift(hideSecrets(line)); set('note', l.slice(0, 100)); },
     clearLog: () => set('log', [])
   };
 })();
