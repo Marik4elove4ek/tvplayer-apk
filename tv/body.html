@@ -175,14 +175,21 @@
   <div class="speed hidden" id="speed">
     <div class="sp-title" data-t="speed_test"></div>
     <div class="sp-main">
-      <div class="sp-gauge"><svg viewBox="0 0 200 120"><path d="M20 110 A80 80 0 0 1 180 110" class="sp-track"/><path d="M20 110 A80 80 0 0 1 180 110" class="sp-fill" id="sp-arc"/></svg>
-        <div class="sp-num" id="sp-num">0</div><div class="sp-unit" data-t="speed_unit"></div></div>
+      <!-- Спидометр: шкала (цвет по скорости: красная — до 50, жёлтая — 50–70, зелёная — от 70 Мбит/с) и стрелка -->
+      <div class="sp-gauge"><svg viewBox="0 0 640 560">
+        <path d="M120 420 A230 230 0 1 1 520 420" class="sp-track"/>
+        <path d="M120 420 A230 230 0 1 1 520 420" class="sp-fill" id="sp-arc"/>
+        <g class="sp-ticks"><line x1="93" y1="436" x2="110" y2="426"/><line x1="62" y1="300" x2="82" y2="300"/><line x1="104" y1="167" x2="120" y2="179"/><line x1="210" y1="88" x2="218" y2="106"/><line x1="320" y1="62" x2="320" y2="82"/><line x1="430" y1="88" x2="422" y2="106"/><line x1="536" y1="167" x2="520" y2="179"/><line x1="578" y1="300" x2="558" y2="300"/><line x1="547" y1="436" x2="530" y2="426"/></g>
+        <g id="sp-needle"><line x1="320" y1="306" x2="224" y2="360" class="sp-needle"/></g><circle cx="320" cy="306" r="14" class="sp-hub"/>
+      </svg>
+        <div class="sp-num" id="sp-num">0</div><div class="sp-unit" data-t="speed_unit"></div>
+        <div class="sp-lab sp-lab0">0</div><div class="sp-lab sp-labmax" id="sp-max">500+</div></div>
       <div class="sp-side">
-        <div class="sp-stat"><b id="sp-ping">—</b><span id="sp-ping-l"></span></div>
-        <div class="sp-stat"><b id="sp-jit">—</b><span id="sp-jit-l"></span></div>
-        <div class="sp-stat"><b id="sp-hd">—</b><span>HD / 4K</span></div>
-        <div class="sp-status" id="sp-status"></div>
+        <div class="sp-stat"><i>⚡</i><b id="sp-ping">—</b><span id="sp-ping-l"></span></div>
+        <div class="sp-stat"><i>〰</i><b id="sp-jit">—</b><span id="sp-jit-l"></span></div>
+        <div class="sp-stat"><i>📺</i><b id="sp-hd">—</b><span>HD / 4K</span></div>
       </div>
+      <div class="sp-status" id="sp-status"></div>
     </div>
     <div class="sp-servers-title" data-t="speed_servers"></div>
     <div class="sp-servers" id="sp-servers"></div>

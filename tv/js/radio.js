@@ -175,6 +175,7 @@ const Radio = (() => {
     box.classList.remove('hidden');
     if (!on) { on = true; raf = requestAnimationFrame(frame); }
     clearTimeout(songTimer);
+    closeWs();
     media = ''; noTags = 0;
     // Первый раз — через 3 секунды: к этому времени плеер уже открыл свой список, и песню читаем из него
     const my = token;
@@ -182,6 +183,7 @@ const Radio = (() => {
   }
   function hide() {
     token++;
+    closeWs();
     on = false;
     cancelAnimationFrame(raf);
     clearTimeout(songTimer);
@@ -292,8 +294,32 @@ const Radio = (() => {
     noTags = tags ? 0 : noTags + 1;
     return best || first;
   }
+  // Станции, у которых песня и обложка приходят по постоянному соединению (WebSocket) от hostingradio.ru:
+  // так их показывает сам сайт станции. Новое Радио идёт одним потоком (без списка HLS), поэтому песню берём отсюда
+  function wsSource(u) {
+    if (/stream\.newradio\.ru\//i.test(u)) return 'wss://meta.hostingradio.ru/emg/novoeradio/ws?format=emg&subformat=full';
+    return null;
+  }
+  let ws = null;
+  function closeWs() { if (ws) { try { ws.onclose = null; ws.close(); } catch (e) { } ws = null; } }
+  function openWs(src, my) {
+    closeWs();
+    if (typeof WebSocket === 'undefined') return;
+    try { ws = new WebSocket(src); } catch (e) { ws = null; return; }
+    ws.onmessage = e => {
+      if (my !== token) return;
+      try {
+        const c = JSON.parse(e.data).current;
+        if (c && c.title) setSong({ title: String(c.title).trim(), artist: String(c.artist || '').trim(), art: String(c.cover || '').replace('/300x300/', '/600x600/') });
+      } catch (x) { }
+    };
+    // Соединение оборвалось — через 20 секунд открываем снова (пока станция на экране)
+    ws.onclose = () => { ws = null; if (my === token && ch) songTimer = setTimeout(() => openWs(src, my), 20000); };
+  }
   async function pollSong(my) {
     if (my !== token || !ch) return;
+    const wsrc = wsSource(ch.url);
+    if (wsrc) { openWs(wsrc, my); return; }
     let s = null, more = true;
     try {
       const site = siteSource(ch.url);

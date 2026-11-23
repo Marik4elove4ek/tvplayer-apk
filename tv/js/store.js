@@ -1,5 +1,6 @@
 // Хранение: плейлисты, избранное, последний канал, настройки (в памяти телевизора/браузера)
 const Store = (() => {
+  const NOTE = /→ hls\.js|\(one variant\)|→ AVPlay|session stream|media sequence|update [\d.]+ downloaded|MB → mode|— EPG: |\(\w+\)\n[{[]/;
   const K = 'lupo.';
   function get(k, def) {
     try { const v = localStorage.getItem(K + k); return v == null ? def : JSON.parse(v); } catch (e) { return def; }
@@ -109,9 +110,12 @@ const Store = (() => {
     saveLeveler: v => set('leveler', v),
     buffer: () => get('buffer', 'medium'),
     saveBuffer: v => set('buffer', v),
-    // Журнал ошибок просмотра (последние 100)
-    log: () => get('log', []),
+    // Журнал ошибок просмотра (последние 100) — только настоящие ошибки. Служебные заметки (Лупо сам переключил
+    // плеер, скачал обновление, перешёл в режим экономии памяти…) ошибками не являются: они пишутся отдельно
+    // (addNote) и в журнале не показываются. Старые такие записи, сделанные раньше, журнал тоже не показывает
+    log: () => get('log', []).filter(x => !NOTE.test(x)),
     addLog: line => { const l = get('log', []); l.unshift(line); set('log', l.slice(0, 100)); },
+    addNote: line => { const l = get('note', []); l.unshift(line); set('note', l.slice(0, 100)); },
     clearLog: () => set('log', [])
   };
 })();

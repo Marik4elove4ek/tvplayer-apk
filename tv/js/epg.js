@@ -279,7 +279,7 @@ const Epg = (() => {
   // перед загрузкой ставится отметка, после — снимается. Если Лупо дважды подряд закрылся во время загрузки
   // программы одного плейлиста, её 6 часов не скачиваем (работает сохранённая), а в журнал пишем, почему
   const MARK = 'lupo.epgLoading';
-  function log(line) { try { if (typeof Store !== 'undefined') Store.addLog(new Date().toLocaleString() + ' — ' + line); } catch (e) { } }
+  function log(line) { try { if (typeof Store !== 'undefined') Store.addNote(new Date().toLocaleString() + ' — ' + line); } catch (e) { } }
   (function lastRun() {
     try {
       const m = JSON.parse(localStorage.getItem(MARK) || 'null');

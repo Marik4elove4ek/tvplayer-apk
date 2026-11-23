@@ -431,3 +431,27 @@ html.av-on.split-web #video { display: block !important; background: #000; }
 .sched.center:not(.pick) { left: 50% !important; right: auto !important; top: 50% !important; bottom: auto !important; width: 900px !important;
   max-height: 80vh; transform: translate(-50%, -50%); border-radius: 22px; border: 1px solid var(--stroke); animation: none; }
 .sched.center:not(.pick) .list { max-height: calc(80vh - 120px); }
+/* Тест скорости, 23.11: спидометр со стрелкой и карточки (выбор Марка, вариант 1). Цвет по качеству:
+   скорость < 50 — красный, 50–70 — жёлтый, от 70 — зелёный; пинг и джиттер — так же, но меньше — лучше */
+.speed { background: radial-gradient(ellipse at 50% 38%, #1d1846 0%, #0B0E13 60%) !important; padding: 36px 90px 24px !important; }
+.sp-main { margin-top: 0 !important; }
+.sp-gauge { width: 560px !important; height: 470px !important; position: relative; }
+.sp-gauge svg { width: 560px; height: 490px; }
+.sp-track { fill: none; stroke: #1E2530; stroke-width: 34; stroke-linecap: round; }
+.sp-fill { fill: none; stroke: var(--sp-c, #7B5CFF) !important; stroke-width: 34; stroke-linecap: round; stroke-dasharray: 960 !important;
+  stroke-dashoffset: 960; transition: stroke-dashoffset .3s, stroke .3s; filter: drop-shadow(0 0 12px var(--sp-c, #7B5CFF)); }
+.sp-ticks line { stroke: #8E9AAB; stroke-width: 3; opacity: .6; }
+.sp-needle { stroke: #fff; stroke-width: 6; stroke-linecap: round; }
+.sp-hub { fill: #fff; }
+.speed .sp-num { top: 318px !important; font-size: 104px !important; color: var(--sp-c, #F3F6FA); text-shadow: 0 0 36px rgba(123,92,255,.6); }
+.speed .sp-unit { top: 440px !important; font-size: 28px !important; }
+.sp-lab { position: absolute; top: 392px; font-size: 22px; color: var(--dim); }
+.sp-lab0 { left: 60px; } .sp-labmax { right: 30px; }
+.speed .sp-side { flex-direction: row !important; margin-top: 4px; }
+.speed .sp-side { gap: 28px !important; }
+.no-gap .speed .sp-side > :not(.hidden) ~ :not(.hidden) { -webkit-margin-start: 28px !important; }
+.speed .sp-stat { width: 280px; padding: 16px 20px; border-radius: 22px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); text-align: center; }
+.speed .sp-stat i { display: block; font-style: normal; font-size: 26px; margin-bottom: 2px; }
+.speed .sp-stat b { font-size: 42px !important; }
+.speed .sp-status { margin-top: 12px; }
+.sp-good { color: #3EE08F !important; } .sp-mid { color: #FFC94D !important; } .sp-bad { color: #FF5A5F !important; }

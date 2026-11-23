@@ -269,7 +269,7 @@
   // ---------- Настройки: порядок как в Android (от главного к редкому) ----------
   const LANGS = [['en', 'English'], ['ru', 'Русский'], ['he', 'עברית'], ['fr', 'Français'], ['ar', 'العربية'],
     ['it', 'Italiano'], ['ja', '日本語'], ['ko', '한국어'], ['zh', '中文']];
-  const VERSION = '0.51';
+  const VERSION = '0.52';
   // Если телевизор даёт странице не 1920 точек в ширину, вся страница уменьшается под экран — ничего не обрезается
   // Старый браузер телевизора не знает «gap» в строках (flex) — включаем запасные отступы (см. конец app.css)
   (function flexGap() {
@@ -1323,10 +1323,23 @@
     return { ping: times[0] > 5900 ? 0 : Math.round(times[0]), jitter: Math.round(times[2] - times[0]),
       mbps: ms > 0 && bytes > 0 ? bytes * 8 / (ms / 1000) / 1e6 : 0, atLeast };
   }
+  // Оценка по цвету (выбор Марка): скорость меньше 50 Мбит/с — красная, 50–70 — жёлтая, от 70 — зелёная.
+  // Пинг и джиттер — наоборот, чем меньше, тем лучше: пинг до 50 мс — зелёный, до 100 — жёлтый, больше — красный;
+  // джиттер до 10 мс — зелёный, до 30 — жёлтый, больше — красный
+  const SP_COL = { good: '#3EE08F', mid: '#FFC94D', bad: '#FF5A5F' };
+  function speedGrade(mbps) { return mbps >= 70 ? 'good' : mbps >= 50 ? 'mid' : 'bad'; }
+  function pingGrade(ms) { return ms <= 50 ? 'good' : ms <= 100 ? 'mid' : 'bad'; }
+  function jitGrade(ms) { return ms <= 10 ? 'good' : ms <= 30 ? 'mid' : 'bad'; }
+  function grade(el, g) { el.classList.remove('sp-good', 'sp-mid', 'sp-bad'); if (g) el.classList.add('sp-' + g); }
   function gauge(mbps) {
     const max = mbps > 1000 ? 2500 : mbps > 500 ? 1000 : 500;
+    const f = Math.min(1, mbps / max);
     $('sp-num').textContent = Math.round(mbps);
-    $('sp-arc').style.strokeDashoffset = 252 * (1 - Math.min(1, mbps / max));
+    $('sp-max').textContent = max + '+';
+    $('sp-arc').style.strokeDashoffset = 960 * (1 - f);
+    // Стрелка: от начала шкалы (внизу слева) по дуге 239° до конца (внизу справа)
+    $('sp-needle').setAttribute('transform', 'rotate(' + (239.2 * f).toFixed(1) + ' 320 306)');
+    $('speed').style.setProperty('--sp-c', mbps > 0 ? SP_COL[speedGrade(mbps)] : '#7B5CFF');
   }
   async function speedTest() {
     const back = Nav.state();
@@ -1334,6 +1347,7 @@
     $('sp-ping-l').textContent = t('speed_ping', '').replace(/[\d\s]*мс|ms/i, '').trim() || 'ping';
     $('sp-jit-l').textContent = t('speed_jitter', '').replace(/[\d\s]*мс|ms/i, '').trim() || 'jitter';
     $('sp-status').textContent = t('speed_hint');
+    ['sp-ping', 'sp-jit', 'sp-hd'].forEach(id => grade($(id), null));
     gauge(0);
     const box = $('sp-servers');
     box.innerHTML = '';
@@ -1348,8 +1362,11 @@
         const pings = [];
         for (let i = 0; i < 6; i++) { const t0 = performance.now(); await xhr('https://speed.cloudflare.com/__down?bytes=0'); pings.push(performance.now() - t0); }
         const jit = pings.slice(1).reduce((a, p, i) => a + Math.abs(p - pings[i]), 0) / (pings.length - 1);
-        $('sp-ping').textContent = Math.round(Math.min(...pings)) + ' ms';
-        $('sp-jit').textContent = Math.round(jit) + ' ms';
+        const pingMs = Math.round(Math.min(...pings)), jitMs = Math.round(jit);
+        $('sp-ping').textContent = pingMs + ' ms';
+        $('sp-jit').textContent = jitMs + ' ms';
+        grade($('sp-ping'), pingGrade(pingMs));
+        grade($('sp-jit'), jitGrade(jitMs));
         $('sp-status').textContent = t('speed_heavy');
         const t0 = performance.now();
         let total = 0, mb = 0;
@@ -1362,6 +1379,7 @@
           gauge(mb);
         }
         $('sp-hd').textContent = mb >= 25 ? '✓ 4K' : mb >= 8 ? '✓ HD' : '✗';
+        grade($('sp-hd'), mb >= 25 ? 'good' : mb >= 8 ? 'mid' : 'bad');
         // Серверы провайдера во всех включённых плейлистах: страна, город, владелец, скорость, пинг, джиттер
         const my = ++run;
         const stop = () => my !== run || $('speed').classList.contains('hidden');
@@ -1394,6 +1412,9 @@
           row.children[1].textContent = r.mbps > 0 ? (r.atLeast ? '≥ ' : '') + (r.mbps >= 10 ? Math.round(r.mbps) : r.mbps.toFixed(1)) + ' ' + t('speed_unit') : t('speed_failed');
           row.children[2].textContent = r.ping ? t('speed_ping', r.ping) : '';
           row.children[3].textContent = r.ping ? t('speed_jitter', r.jitter) : '';
+          grade(row.children[1], r.mbps > 0 && !r.atLeast ? speedGrade(r.mbps) : r.atLeast && r.mbps >= 70 ? 'good' : null);
+          grade(row.children[2], r.ping ? pingGrade(r.ping) : null);
+          grade(row.children[3], r.ping ? jitGrade(r.jitter) : null);
           if (!r.atLeast && r.mbps > bestSpeed) { bestSpeed = r.mbps; bestName = label; }
           if (!(r.mbps > 0)) Store.addLog(new Date().toLocaleString(LANG) + ' — speed test\n' + sv.playlist + ' (' + sv.host + ')');
         }
@@ -1963,7 +1984,7 @@
       const left = st.find(x => x.i === 0);
       const good = x => x && x.time > 500 && (x.web ? x.pic !== false : x.state === 'PLAYING');
       const ok = good(right) && good(left);
-      Store.addLog(new Date().toLocaleString(LANG) + ' — ' + t('split_watch') + ' (' + splitMode + ')\n' + JSON.stringify(st));
+      Store.addNote(new Date().toLocaleString(LANG) + ' — ' + t('split_watch') + ' (' + splitMode + ')\n' + JSON.stringify(st));
       if (ok) return;
       splitGiveUp();
     }, 9000);
@@ -2134,13 +2155,13 @@
       onVariant = null;
       const l = noVariant().filter(k => k !== favKey(c)); l.push(favKey(c));
       try { localStorage.setItem('lupo.noVariant', JSON.stringify(l.slice(-300))); } catch (e) { }
-      Store.addLog(new Date().toLocaleString(LANG) + ' — ' + c.name + '\n' + why + ' (one variant)');
+      Store.addNote(new Date().toLocaleString(LANG) + ' — ' + c.name + '\n' + why + ' (one variant)');
       if (webEngine(c)) { reconnects = []; cancelPending(); Player.start(streamUrl(c), { web: true }); return true; }
     }
     if (!Player.native || webEngine(c) || arch || webFailed.has(favKey(c))) return false;
     setWeb(c, true);
     reconnects = [];
-    Store.addLog(new Date().toLocaleString(LANG) + ' — ' + c.name + '\n' + why + ' → hls.js');
+    Store.addNote(new Date().toLocaleString(LANG) + ' — ' + c.name + '\n' + why + ' → hls.js');
     cancelPending();
     Player.start(streamUrl(c), { web: true });
     return true;
@@ -2197,7 +2218,7 @@
       // Такие станции сразу идут через запасной плеер (hls.js) — он сам открывает свой сеанс
       if (k.audio && /[?&]hlssid=/i.test(k.audio) && !webEngine(c)) {
         setWeb(c, true);
-        Store.addLog(new Date().toLocaleString(LANG) + ' — ' + c.name + '\nsession stream → hls.js');
+        Store.addNote(new Date().toLocaleString(LANG) + ' — ' + c.name + '\nsession stream → hls.js');
         Player.start(url, { web: true });
         return;
       }
@@ -2210,7 +2231,7 @@
       if (!k.audio && !k.big) seqChecked.set(c.url, 'plain');   // обычный канал — больше не проверяем
       if (k.big && !webEngine(c)) {
         setWeb(c, true);
-        Store.addLog(new Date().toLocaleString(LANG) + ' — ' + c.name + '\nmedia sequence → hls.js');
+        Store.addNote(new Date().toLocaleString(LANG) + ' — ' + c.name + '\nmedia sequence → hls.js');
       }
       Player.start(url, { web: webEngine(c) });
     });
@@ -2265,7 +2286,7 @@
       // Запасной плеер канал не открыл — возвращаем канал родному плееру
       setWeb(c, false);
       webFailed.add(favKey(c));
-      Store.addLog(new Date().toLocaleString(LANG) + ' — ' + c.name + '\nhls.js: ' + msg + ' → AVPlay');
+      Store.addNote(new Date().toLocaleString(LANG) + ' — ' + c.name + '\nhls.js: ' + msg + ' → AVPlay');
       cancelPending();
       Player.start(streamUrl(c));
       return;
@@ -3154,7 +3175,7 @@
       if (info && newerVer(info.v, VERSION) && !badNow(info.v)) {
         await saveUpdate(info.v, await updFiles(info));
         updReady = true;
-        Store.addLog(new Date().toLocaleString(LANG) + ' — update ' + info.v + ' downloaded (' + why + ')');
+        Store.addNote(new Date().toLocaleString(LANG) + ' — update ' + info.v + ' downloaded (' + why + ')');
         if (why === 'return' || document.hidden || Date.now() - T_START < 180000) { Player.stop(); location.reload(); }
       }
     } catch (e) { Store.addLog(new Date().toLocaleString(LANG) + ' — update (' + why + ')\n' + (e && (e.message || e.name) || e)); }
@@ -3188,7 +3209,7 @@
       else if (part < 0.4) tight = 0;
       if (tight !== was) {
         try { localStorage.setItem('lupo.tight', String(tight)); } catch (e) { }
-        Store.addLog(new Date().toLocaleString(LANG) + ' — memory ' + Math.round(u.usage / 1e6) + ' / ' + Math.round(u.quota / 1e6) + ' MB → mode ' + tight + (TV_MODEL ? ' · ' + TV_MODEL : ''));
+        Store.addNote(new Date().toLocaleString(LANG) + ' — memory ' + Math.round(u.usage / 1e6) + ' / ' + Math.round(u.quota / 1e6) + ' MB → mode ' + tight + (TV_MODEL ? ' · ' + TV_MODEL : ''));
       }
       Epg.setTight(tight >= 1);
       if (!lvl || !pl) return;
