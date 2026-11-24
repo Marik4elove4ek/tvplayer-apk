@@ -97,7 +97,7 @@ const Epg = (() => {
     // Каналы с архивом: для них храним и прошлые передачи (столько дней, сколько архив)
     const deep = new Set();
     let archDays = 0;
-    channels.forEach(c => { if (window.Catchup && Catchup.has(c)) { deep.add(keyOf(c)); archDays = Math.max(archDays, Catchup.days(c)); } });
+    channels.forEach(c => { if (typeof Catchup !== 'undefined' && Catchup.has(c)) { deep.add(keyOf(c)); archDays = Math.max(archDays, Catchup.days(c)); } });
     const near = Date.now() - 3 * 3600e3;
     const from = Math.min(near, Date.now() - archDays * 86400e3), to = Date.now() + 4 * 86400e3;
     return { ids, names, deep, near, from, to };
@@ -259,7 +259,7 @@ const Epg = (() => {
         if (l.length) data.push([k, l]);
       });
       const d = await db();
-      d.transaction('epg', 'readwrite').objectStore('epg').put({ time: Date.now(), data }, id);
+      d.transaction('epg', 'readwrite').objectStore('epg').put({ time: Date.now(), data, v: 2 }, id);
     } catch (e) { }
   }
   // Убрать сохранённую программу плейлистов, которых больше нет (после восстановления копии у плейлистов новые номера)
@@ -351,7 +351,8 @@ const Epg = (() => {
     try {
       const cached = await readCache(playlistId);
       if (cached) { put(playlistId, new Map(cached.data)); fetched.set(playlistId, cached.time); listeners.forEach(f => f()); }
-      if (!urls.length || (cached && Date.now() - cached.time < 6 * 3600e3)) return;
+      // v: 2 — сохранено после исправления архива (0.56); старая сохранённая программа была без прошлых дней — качаем свежую
+      if (!urls.length || (cached && cached.v === 2 && Date.now() - cached.time < 6 * 3600e3)) return;
       // Мало места: свежую программу скачиваем только для открытого плейлиста (у других она бы не сохранилась
       // и скачивалась бы заново при каждом заходе)
       if (tight && playlistId !== current) {

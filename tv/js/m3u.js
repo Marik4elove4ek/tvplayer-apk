@@ -59,7 +59,8 @@ const M3U = (() => {
       if (!line) continue;
       if (/^#EXTM3U/i.test(line)) {
         const h = attrs(line);
-        if (h.catchup || h['catchup-source'] || h['catchup-days']) defCu = { type: h.catchup || null, src: h['catchup-source'] || null, days: +h['catchup-days'] || 0 };
+        const hType = h.catchup || h['catchup-type'], hDays = cuDays(h);
+        if (hType || h['catchup-source'] || hDays) defCu = { type: hType || null, src: h['catchup-source'] || null, days: hDays };
         for (const k of ['url-tvg', 'x-tvg-url', 'tvg-url']) {
           if (h[k]) h[k].split(',').map(s => s.trim()).filter(s => /^http/i.test(s)).forEach(s => { if (!epg.includes(s)) epg.push(s); });
         }
@@ -69,9 +70,9 @@ const M3U = (() => {
         group = a['group-title'] || null;
         tvgId = a['tvg-id'] || null;
         // Архив передач: catchup="…" catchup-source="…" catchup-days="…" (или timeshift / tvg-rec — дни)
-        const days = +(a['catchup-days'] || a.timeshift || a['tvg-rec'] || 0) || 0;
-        cu = a.catchup || a['catchup-source'] || days ? { type: a.catchup || null, src: a['catchup-source'] || null, days } : null;
-        if (cu && cu.type === 'disabled') cu = null;
+        const days = cuDays(a), type = a.catchup || a['catchup-type'];
+        cu = type || a['catchup-source'] || days ? { type: type || null, src: a['catchup-source'] || null, days } : null;
+        if (cu && /^(disabled|none)$/i.test(cu.type || '')) cu = null;
         const c = nameComma(line);
         name = c >= 0 ? line.substring(c + 1).trim() : null;
         if (!name) name = a['tvg-name'] || null;
@@ -115,6 +116,11 @@ const M3U = (() => {
     const m = /\|.*?User-Agent=([^&|]+)/i.exec(line);
     if (!m) return {};
     try { return { ua: decodeURIComponent(m[1]) }; } catch (e) { return {}; }
+  }
+  // Дни архива, как в Android (Data.kt): catchup-days, timeshift, tvg-rec; tvg-rec="1" — «архив есть» (7 дней)
+  function cuDays(a) {
+    const n = v => { const x = parseInt(String(v || '').trim(), 10); return x > 0 ? x : 0; };
+    return n(a['catchup-days']) || n(a.timeshift) || (n(a['tvg-rec']) > 1 ? n(a['tvg-rec']) : String(a['tvg-rec'] || '').trim() === '1' ? 7 : 0);
   }
   function catchupFields(c) {
     return c ? { catchup: c.type || '', catchupSource: c.src || null, catchupDays: c.days || 0 } : {};
