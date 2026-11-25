@@ -316,6 +316,16 @@ html.av-on #video { display: none; }
 .bar-num { font-size: 60px !important; font-weight: 900; }
 #input .fbox { margin: 10px 0; }
 #input .row { justify-content: center; }
+/* Окно PIN-кода: своя цифровая панель для пульта (клавиатура телевизора не открывается) */
+.pin-dots { display: flex; justify-content: center; gap: 16px; margin: 16px 0 18px; min-height: 22px; }
+.pin-dots span { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--dim); }
+.pin-dots span.on { background: var(--text); border-color: var(--text); }
+.pin-pad { display: grid; grid-template-columns: repeat(3, 110px); gap: 12px; justify-content: center; margin: 4px 0 10px; }
+.pin-key { height: 72px; border-radius: 16px; background: var(--surface2); color: var(--text); border: 2px solid transparent;
+  font-size: 34px; font-weight: 600; outline: none; font-family: inherit; }
+.pin-key:focus { background: linear-gradient(90deg, var(--accent), var(--accent2)); color: #fff; transform: scale(1.06); }
+.pin-key.ok { background: var(--accent); }
+#input.pin-mode .fbox, #input.pin-mode #input-ok { display: none; }
 .digits { position: fixed; right: 90px; top: 60px; z-index: 9; font-size: 90px; font-weight: 900; color: var(--text);
   background: rgba(11,14,19,.85); border-radius: 20px; padding: 10px 34px; }
 .ch.moving, .tile.moving { border-color: #ffb84d !important; background: #3a2c12 !important; }

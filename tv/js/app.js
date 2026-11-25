@@ -269,7 +269,7 @@
   // ---------- Настройки: порядок как в Android (от главного к редкому) ----------
   const LANGS = [['en', 'English'], ['ru', 'Русский'], ['he', 'עברית'], ['fr', 'Français'], ['ar', 'العربية'],
     ['it', 'Italiano'], ['ja', '日本語'], ['ko', '한국어'], ['zh', '中文']];
-  const VERSION = '0.57';
+  const VERSION = '0.58';
   // Если телевизор даёт странице не 1920 точек в ширину, вся страница уменьшается под экран — ничего не обрезается
   // Старый браузер телевизора не знает «gap» в строках (flex) — включаем запасные отступы (см. конец app.css)
   (function flexGap() {
@@ -1463,7 +1463,14 @@
   }
 
   // ---------- Ввод текста / PIN-кода ----------
-  function inputDialog(title, value, password, onOk, onCancel) {
+  // password === 'pin' — PIN-код: своя цифровая панель (пульт или цифры на пульте), клавиатура телевизора не открывается.
+  // pinLen — длина уже заданного кода: набрали столько цифр — проверка сама, без «OK»
+  function inputDialog(title, value, password, onOk, onCancel, pinLen) {
+    const pinMode = password === 'pin';
+    $('input').classList.toggle('pin-mode', pinMode);
+    $('pin-dots').classList.toggle('hidden', !pinMode);
+    $('pin-pad').classList.toggle('hidden', !pinMode);
+    if (pinMode) return pinDialog(title, onOk, onCancel, pinLen);
     $('input-title').textContent = title;
     const f = $('input-field');
     f.type = password ? 'password' : 'text';
@@ -1477,10 +1484,64 @@
     Nav.setScope($('input'), () => { close(); if (onCancel) onCancel(); });
     Nav.focus($('input').querySelector('.fbox'));
   }
+  function pinDialog(title, onOk, onCancel, pinLen) {
+    $('input-title').textContent = title;
+    $('input-error').textContent = '';
+    let code = '';
+    const dots = $('pin-dots'), pad = $('pin-pad');
+    const draw = () => {
+      dots.innerHTML = '';
+      for (let i = 0; i < Math.max(pinLen || 4, code.length); i++) {
+        const d = document.createElement('span');
+        if (i < code.length) d.className = 'on';
+        dots.appendChild(d);
+      }
+    };
+    const close = () => { $('input').classList.add('hidden'); $('input').classList.remove('pin-mode'); };
+    const submit = () => {
+      if (!code) return;
+      const v = code;
+      const r = onOk(v, msg => { $('input-error').textContent = msg; code = ''; draw(); });
+      if (r !== false) close();
+    };
+    const add = d => {
+      if (code.length >= 12) return;
+      code += d;
+      $('input-error').textContent = '';
+      draw();
+      if (pinLen && code.length === pinLen) setTimeout(submit, 150);
+    };
+    pad.innerHTML = '';
+    let five = null;
+    ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'del', '0', 'ok'].forEach(k => {
+      const b = document.createElement('button');
+      b.className = 'pin-key' + (k === 'ok' ? ' ok' : '');
+      b.textContent = k === 'del' ? '←' : k === 'ok' ? 'OK' : k;
+      b.onclick = () => {
+        if (k === 'del') { code = code.slice(0, -1); draw(); }
+        else if (k === 'ok') submit();
+        else add(k);
+      };
+      if (k === '5') five = b;
+      pad.appendChild(b);
+    });
+    draw();
+    $('input-cancel').onclick = () => { close(); if (onCancel) onCancel(); };
+    $('input').classList.remove('hidden');
+    // Цифры на пульте тоже набирают код
+    Nav.setScope($('input'), () => { close(); if (onCancel) onCancel(); }, e => {
+      const k = e.keyCode;
+      const d = k >= 48 && k <= 57 ? k - 48 : k >= 96 && k <= 105 ? k - 96 : -1;
+      if (d < 0) return false;
+      add(String(d));
+      return true;
+    });
+    Nav.focus(five);
+  }
   // PIN нет — сначала задать (от 4 цифр); есть — спросить
   function ensurePin(then, back) {
     if (Store.pin()) return then();
-    inputDialog(t('pin_new'), '', true, (v, err) => {
+    inputDialog(t('pin_new'), '', 'pin', (v, err) => {
       if (!/^\d{4,}$/.test(v)) { err(t('pin_new')); return false; }
       Store.savePin(v);
       setTimeout(then, 0);
@@ -1489,7 +1550,7 @@
   let pinFails = 0, pinLockUntil = 0;
   function checkPin(then, back) {
     if (!Store.pin()) return then();
-    inputDialog(t('pin_enter'), '', true, (v, err) => {
+    inputDialog(t('pin_enter'), '', 'pin', (v, err) => {
       // Подбор кода: после пяти неверных попыток подряд — минута ожидания
       if (Date.now() < pinLockUntil) { err(t('pin_wait', Math.ceil((pinLockUntil - Date.now()) / 1000))); return false; }
       if (v !== Store.pin()) {
@@ -1499,7 +1560,7 @@
       }
       pinFails = 0;
       setTimeout(then, 0);
-    }, back);
+    }, back, Store.pin().length);
   }
 
   // ---------- Меню канала (удерживать OK на канале): избранное, переместить, переименовать, PIN ----------
@@ -3127,12 +3188,12 @@
   }
   // Новый PIN: от 4 цифр, ещё раз для проверки
   function newPin(done, back) {
-    inputDialog(t('pin_new'), '', true, (v, err) => {
+    inputDialog(t('pin_new'), '', 'pin', (v, err) => {
       if (!/^\d{4,}$/.test(v)) { err(t('pin_new')); return false; }
-      setTimeout(() => inputDialog(t('pin_repeat'), '', true, (w, err2) => {
+      setTimeout(() => inputDialog(t('pin_repeat'), '', 'pin', (w, err2) => {
         if (w !== v) { err2(t('pin_mismatch')); return false; }
         setTimeout(() => done(v), 0);
-      }, back), 0);
+      }, back, v.length), 0);
     }, back);
   }
 
@@ -3143,24 +3204,24 @@
       return;
     }
     pick(t('pin_button'), [{ label: t('pin_disable') }], () => {
-      inputDialog(t('pin_current'), '', true, (v, err) => {
+      inputDialog(t('pin_current'), '', 'pin', (v, err) => {
         if (v !== Store.appPin()) { err(t('pin_wrong')); return false; }
         Store.saveAppPin(null);
         toast(t('pin_disabled'));
         setTimeout(back, 0);
-      }, back);
+      }, back, Store.appPin().length);
     }, back);
   }
   // При запуске: спросить PIN до того, как что-то показать
   function askAppPin(then) {
     if (!Store.appPin()) return then();
     let tries = 0;
-    const ask = () => inputDialog(t('pin_enter'), '', true, (v, err) => {
+    const ask = () => inputDialog(t('pin_enter'), '', 'pin', (v, err) => {
       if (v === Store.appPin()) { setTimeout(then, 0); return; }
       tries++;
       err(t('pin_wrong'));
       return false;
-    }, () => askExit(ask));   // «Отмена» в вопросе о выходе — снова ввод PIN-кода
+    }, () => askExit(ask), Store.appPin().length);   // «Отмена» в вопросе о выходе — снова ввод PIN-кода
     $('pin-cover').classList.remove('hidden');
     ask();
   }
