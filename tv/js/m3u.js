@@ -160,6 +160,16 @@ const M3U = (() => {
     const info = auth && auth.user_info;
     if (!info || Number(info.auth) !== 1) throw new LupoError('err_bad_login');
     if (info.status && !/^active$/i.test(info.status)) throw new LupoError('err_inactive', info.status);
+    // Часовой пояс сервера (для архива: время в адресе передачи — по часам сервера, как в Android)
+    try {
+      const tz = auth.server_info && auth.server_info.timezone;
+      const host = new URL(base).host.toLowerCase();
+      if (tz && host) {
+        new Intl.DateTimeFormat('en-US', { timeZone: tz });   // неизвестный пояс — исключение, не сохраняем
+        const all = JSON.parse(localStorage.getItem('lupo.xtz') || '{}');
+        if (all[host] !== tz) { all[host] = tz; localStorage.setItem('lupo.xtz', JSON.stringify(all)); }
+      }
+    } catch (e) { }
     const cats = {};
     try { JSON.parse(await getText(api + '&action=get_live_categories')).forEach(c => { cats[c.category_id] = c.category_name; }); } catch (e) { }
     const list = JSON.parse(await getText(api + '&action=get_live_streams'));

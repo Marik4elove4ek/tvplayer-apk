@@ -63,9 +63,22 @@ const Catchup = (() => {
     const m = /^(.*)\/live\/([^/]+)\/([^/]+)\/(\d+)(\.\w+)?/.exec(u);
     if (!m) return shift(u, start);
     const minutes = Math.max(1, Math.floor((stop - start) / 60000));
+    return m[1] + '/timeshift/' + m[2] + '/' + m[3] + '/' + minutes + '/' + xcDate(m[1], start) + '/' + m[4] + '.ts';   // как в Android: архив Xtream проверен с .ts
+  }
+  // Дата передачи по часам сервера Xtream (пояс сервер сообщил при входе); не сообщил — по часам телевизора, как раньше
+  function xcDate(base, start) {
     const d = new Date(start);
-    const date = d.getFullYear() + '-' + two(d.getMonth() + 1) + '-' + two(d.getDate()) + ':' + two(d.getHours()) + '-' + two(d.getMinutes());
-    return m[1] + '/timeshift/' + m[2] + '/' + m[3] + '/' + minutes + '/' + date + '/' + m[4] + '.ts';   // как в Android: архив Xtream проверен с .ts
+    try {
+      const host = new URL(base).host.toLowerCase();
+      const tz = JSON.parse(localStorage.getItem('lupo.xtz') || '{}')[host];
+      if (tz) {
+        const p = {};
+        new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+          .formatToParts(d).forEach(x => { p[x.type] = x.value; });
+        if (p.year && p.month && p.day && p.hour && p.minute) return p.year + '-' + p.month + '-' + p.day + ':' + (p.hour === '24' ? '00' : p.hour) + '-' + p.minute;
+      }
+    } catch (e) { }
+    return d.getFullYear() + '-' + two(d.getMonth() + 1) + '-' + two(d.getDate()) + ':' + two(d.getHours()) + '-' + two(d.getMinutes());
   }
   function two(n) { return (n < 10 ? '0' : '') + n; }
   // Части даты по UTC, как в Android-версии

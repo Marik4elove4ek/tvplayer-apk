@@ -269,7 +269,7 @@
   // ---------- Настройки: порядок как в Android (от главного к редкому) ----------
   const LANGS = [['en', 'English'], ['ru', 'Русский'], ['he', 'עברית'], ['fr', 'Français'], ['ar', 'العربية'],
     ['it', 'Italiano'], ['ja', '日本語'], ['ko', '한국어'], ['zh', '中文']];
-  const VERSION = '0.56';
+  const VERSION = '0.57';
   // Если телевизор даёт странице не 1920 точек в ширину, вся страница уменьшается под экран — ничего не обрезается
   // Старый браузер телевизора не знает «gap» в строках (flex) — включаем запасные отступы (см. конец app.css)
   (function flexGap() {
@@ -561,15 +561,33 @@
   function noAdult(list) { return Store.parental() ? (list || []).filter(c => !isAdultName(c.group) && !isAdultName(c.name)) : (list || []); }
   // Папка под PIN-кодом (ключ — плейлист и папка); PIN спрашивается один раз до выхода из программы
   function groupKey(g, pid) { return (pid || (pl ? pl.id : '')) + '|' + g; }
-  function isGroupLocked(g, pid) { return g !== FAV && g !== ALL && g !== GFAV && Store.lockedGroups().includes(groupKey(g, pid)); }
-  const unlockedGroups = new Set();
+  // Папка 18+ по названию ВСЕГДА под кодом, если PIN задан: замок не теряется при смене плейлиста,
+  // переименовании папки или сбое сохранённого списка замков (снять вручную нельзя)
+  function isAdultFolder(g) { return g !== FAV && g !== ALL && g !== GFAV && !!Store.pin() && isAdultName(g); }
+  function isGroupLocked(g, pid) { return g !== FAV && g !== ALL && g !== GFAV && (Store.lockedGroups().includes(groupKey(g, pid)) || isAdultFolder(g)); }
+  // Код 18+ действует 10 минут (как в Android): потом переключиться на другой закрытый канал — снова по коду.
+  // Канал, который уже идёт, не прерывается (см. play: тот же канал код не спрашивает)
+  const OPEN_MS = 10 * 60 * 1000;
+  function timedSet() {
+    const m = new Map();
+    return {
+      add(k) { m.set(k, Date.now()); },
+      has(k) { const at = m.get(k); if (at === undefined) return false; if (Date.now() - at < OPEN_MS) return true; m.delete(k); return false; },
+      delete(k) { m.delete(k); },
+      clear() { m.clear(); }
+    };
+  }
+  const unlockedGroups = timedSet();
+  // Ушли в папку без замка — закрытые папки снова закрыты (вернуться — только по коду, даже через 2 минуты)
+  function relockFolders() { unlockedGroups.clear(); }
   function openLockedGroup(g, pid, then, back) {
-    if (!isGroupLocked(g, pid) || unlockedGroups.has(groupKey(g, pid))) return then();
+    if (!isGroupLocked(g, pid)) { relockFolders(); return then(); }
+    if (unlockedGroups.has(groupKey(g, pid))) return then();
     checkPin(() => { unlockedGroups.add(groupKey(g, pid)); then(); }, back);
   }
   // Удерживать OK на папке — поставить или снять PIN-код
   function groupMenu(g, pid, back) {
-    if (g === FAV || g === ALL || g === GFAV) return back();
+    if (g === FAV || g === ALL || g === GFAV || isAdultFolder(g)) return back();
     const k = groupKey(g, pid);
     const on = isGroupLocked(g, pid);
     pick(groupLabel(g), [{ label: t(on ? 'unlock_group' : 'lock_group') }], () => {
@@ -1034,7 +1052,7 @@
     const box = $('dr-groups');
     groupTree(box, drExpanded, (id, pid) => { drExpanded = id; renderDrGroups(pid); },
       (p, g) => {
-        if (!p) { group = GFAV; setShown(inGroup(GFAV)); gi = Math.max(0, cur); closeDrawer(); renderGuide(); return; }
+        if (!p) { relockFolders(); group = GFAV; setShown(inGroup(GFAV)); gi = Math.max(0, cur); closeDrawer(); renderGuide(); return; }
         openLockedGroup(g, p.id, () => {
           closeDrawer();
           if (pl && p.id === pl.id) { group = g; setShown(inGroup(g)); gi = Math.max(0, cur); renderGuide(); return; }
@@ -2365,7 +2383,7 @@
   });
   Player.on('tracks', () => { autoAudio(); autoSubs(); });
 
-  const unlocked = new Set();   // каналы, для которых PIN уже введён (до выхода из программы)
+  const unlocked = timedSet();   // каналы, для которых PIN уже введён (действует 10 минут)
   // Канал под PIN-кодом (сам или его папка), и PIN в этот раз ещё не вводили
   function needsPin(c) {
     return !!c && ((isLocked(c) && !unlocked.has(favKey(c))) || (isGroupLocked(c.group, c._pl) && !unlockedGroups.has(groupKey(c.group, c._pl))));
@@ -2373,7 +2391,10 @@
   function play(i, a) {
     if (!shown.length) return;
     const want = shown[(i + shown.length) % shown.length];
-    if (needsPin(want)) {
+    // Канал не из закрытой папки — закрытые папки снова закрыты
+    if (want && !isGroupLocked(want.group, want._pl)) relockFolders();
+    // Тот же канал, что уже идёт (повтор, переподключение) — код заново не спрашиваем
+    if (want !== playingCh && needsPin(want)) {
       const back = Nav.state();
       return checkPin(() => { unlocked.add(favKey(want)); unlockedGroups.add(groupKey(want.group, want._pl)); play(i, a); }, back);
     }
@@ -2767,7 +2788,7 @@
     if (focusPid === undefined) sideExpanded = sideOther ? sideOther.p.id : pl ? pl.id : null;
     groupTree(box, sideExpanded, (id, pid) => { sideExpanded = id; openSideGroups(pid); },
       (p, g) => {
-        if (!p) { sideScope(); sideOther = null; sideGroup = GFAV; hideSideGroups(); renderSide(false); return; }
+        if (!p) { relockFolders(); sideScope(); sideOther = null; sideGroup = GFAV; hideSideGroups(); renderSide(false); return; }
         openLockedGroup(g, p.id, async () => {
           sideScope();
           if (pl && p.id === pl.id) { sideOther = null; sideGroup = g; hideSideGroups(); renderSide(false); return; }
