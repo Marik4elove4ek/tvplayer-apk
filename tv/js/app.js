@@ -269,7 +269,7 @@
   // ---------- Настройки: порядок как в Android (от главного к редкому) ----------
   const LANGS = [['en', 'English'], ['ru', 'Русский'], ['he', 'עברית'], ['fr', 'Français'], ['ar', 'العربية'],
     ['it', 'Italiano'], ['ja', '日本語'], ['ko', '한국어'], ['zh', '中文']];
-  const VERSION = '0.58';
+  const VERSION = '0.60';
   // Если телевизор даёт странице не 1920 точек в ширину, вся страница уменьшается под экран — ничего не обрезается
   // Старый браузер телевизора не знает «gap» в строках (flex) — включаем запасные отступы (см. конец app.css)
   (function flexGap() {
@@ -1542,10 +1542,10 @@
   function ensurePin(then, back) {
     if (Store.pin()) return then();
     inputDialog(t('pin_new'), '', 'pin', (v, err) => {
-      if (!/^\d{4,}$/.test(v)) { err(t('pin_new')); return false; }
+      if (!/^\d{4}$/.test(v)) { err(t('pin_new')); return false; }
       Store.savePin(v);
       setTimeout(then, 0);
-    }, back);
+    }, back, 4);
   }
   let pinFails = 0, pinLockUntil = 0;
   function checkPin(then, back) {
@@ -3189,12 +3189,12 @@
   // Новый PIN: от 4 цифр, ещё раз для проверки
   function newPin(done, back) {
     inputDialog(t('pin_new'), '', 'pin', (v, err) => {
-      if (!/^\d{4,}$/.test(v)) { err(t('pin_new')); return false; }
+      if (!/^\d{4}$/.test(v)) { err(t('pin_new')); return false; }
       setTimeout(() => inputDialog(t('pin_repeat'), '', 'pin', (w, err2) => {
         if (w !== v) { err2(t('pin_mismatch')); return false; }
         setTimeout(() => done(v), 0);
       }, back, v.length), 0);
-    }, back);
+    }, back, 4);
   }
 
   // ---------- PIN-код на вход в программу (по умолчанию выключен) ----------

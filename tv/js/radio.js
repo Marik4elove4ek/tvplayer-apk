@@ -216,7 +216,96 @@ const Radio = (() => {
     if (/radio-holding\.ru\/marusya/i.test(u)) return 'https://h6.marus.fm/tracks?timestamp={ts}&region=default';
     if (/hostingradio\.ru\/dfm\//i.test(u)) return 'https://dfm.ru/api/n/legend?slug=dfm';
     if (/rusradio\.ru\/t\/radio/i.test(u)) return 'https://rusradio.ru/api/n/legend?slug=russkoe-radio';
+    // Израиль: Галгалац и «Каn» — открытые адреса сайтов станций (как в Android, RadioSongs.kt)
+    if (/\/glglz_mp3/i.test(u)) return 'https://glz.co.il/umbraco/api/playerv2/LiveSchedule?rootId=1920';
+    if (/KAN_88/i.test(u)) return 'https://www.kan.org.il/api/arc-cloud/get-live-track-data?channelId=4';
+    if (/KAN_KOL_HAMUSICA/i.test(u)) return 'https://www.kan.org.il/api/arc-cloud/get-live-track-data?channelId=5';
+    if (/KAN_GIMMEL/i.test(u)) return 'https://www.kan.org.il/api/arc-cloud/get-live-track-data?channelId=9';
+    if (/KAN_TARBUT/i.test(u)) return 'https://www.kan.org.il/api/arc-cloud/get-live-track-data?channelId=7';
     return null;
+  }
+  // Мост Cloudflare (воркер lupo-ritsa): браузер не читает ни название песни из потока (ICY), ни ответы
+  // израильских сайтов (нет CORS) — мост делает это за нас: /icy?u=поток → {"title":…}, /j?u=адрес → тот же JSON
+  const BRIDGE = 'https://lupo-ritsa.kobozevmark.workers.dev';
+  const isIl = u => /glz\.co\.il|kan\.org\.il/i.test(u);
+  function absUrl(c, source) {
+    if (!c) return '';
+    if (/^http/.test(c)) return c;
+    return c.startsWith('/') ? source.slice(0, source.indexOf('/', source.indexOf('://') + 3)) + c : '';
+  }
+  // Галгалац: segments[0].desc — «Исполнитель - Песня»; Каn: {title, artists[], programData{imageSrc}}
+  function parseIl(json, source) {
+    if (!json || typeof json !== 'object') return null;
+    if (/glz\.co\.il/.test(source)) {
+      const seg = Array.isArray(json.segments) ? json.segments[0] : null;
+      const desc = seg && text(seg, ['desc', 'description']);
+      if (!desc || !desc.includes(' - ')) return null;
+      const title = desc.slice(desc.indexOf(' - ') + 3).trim();
+      return title ? { title, artist: desc.split(' - ')[0].trim(), art: absUrl(text(seg, ['image', 'imageUrl', 'img', 'picture']), source) } : null;
+    }
+    const title = text(json, ['title']);
+    if (!title) return null;
+    const artist = Array.isArray(json.artists) ? json.artists.map(a => String(a || '').trim()).filter(Boolean).join(', ') : '';
+    return { title, artist, art: absUrl(json.programData && text(json.programData, ['imageSrc']), source) };
+  }
+  // Обложка песни из iTunes (открытый поиск); одна последняя песня помнится
+  let coverKey = '', coverVal = '';
+  async function itunesCover(artist, title) {
+    const key = artist + '|' + title;
+    if (key === coverKey) return coverVal;
+    let found = '';
+    try {
+      const r = await fetch('https://itunes.apple.com/search?media=music&entity=song&limit=1&term=' + encodeURIComponent((artist + ' ' + title).trim()));
+      const hit = ((await r.json()).results || [])[0];
+      if (hit && hit.artworkUrl100) found = hit.artworkUrl100.replace('100x100bb', '600x600bb');
+    } catch (e) { }
+    coverKey = key; coverVal = found;
+    return found;
+  }
+  // Часть израильских потоков шлёт название в cp1255: еврейские буквы приходят как «àáâ…» (как fixHebrew в Android)
+  function fixHebrew(t) {
+    if (/[\u0590-\u05FF]/.test(t)) return t;
+    const odd = t.split('').filter(c => c.charCodeAt(0) > 127);
+    if (odd.length < 2 || odd.filter(c => { const k = c.charCodeAt(0); return k >= 0xE0 && k <= 0xFA; }).length * 10 < odd.length * 7) return t;
+    try {
+      const bytes = Uint8Array.from(t.split('').map(c => c.charCodeAt(0) & 255));
+      const f = new TextDecoder('windows-1255').decode(bytes);
+      return /[\u05D0-\u05EA]/.test(f) ? f : t;
+    } catch (e) { return t; }
+  }
+  const SERVICE = ['powered by', 'cdn -', 'cdn-', ' cdn', 'http://', 'https://', 'www.', 'live stream', 'livestream', 'shoutcast', 'icecast', 'autodj', 'auto dj', 'airtime', 'no title', 'untitled'];
+  const EMPTY_WORDS = ['live', 'stream', 'radio', 'online', 'onair', 'unknown', 'none', 'null', 'эфир', 'прямойэфир', 'радио'];
+  const plainOf = t => t.toLowerCase().split('').filter(c => /[\p{L}\p{N}]/u.test(c)).join('');
+  // То же, что RadioSongs.songOrNull в Android: служебные подписи и название самой станции — не песня
+  function songOrNull(raw, station) {
+    const t = fixHebrew((raw || '').trim());
+    if (t.length < 2 || !/\p{L}/u.test(t)) return null;
+    const low = t.toLowerCase();
+    if (SERVICE.some(w => low.includes(w))) return null;
+    let plain = plainOf(t);
+    if (EMPTY_WORDS.includes(plain)) return null;
+    const st = plainOf(station || '');
+    if (st.length >= 3) {
+      ['live', 'online', 'radio', 'радио', 'fm', 'эфир'].forEach(w => { plain = plain.split(w).join(''); });
+      let sp = st;
+      ['radio', 'радио', 'fm'].forEach(w => { sp = sp.split(w).join(''); });
+      const a = plain.replace(/[^\p{L}]/gu, ''), b = sp.replace(/[^\p{L}]/gu, '');
+      if (!a || (b.length >= 3 && (a === b || (a.length >= 3 && (b.startsWith(a) || a.startsWith(b)) && Math.abs(a.length - b.length) <= 3)))) return null;
+    }
+    return t;
+  }
+  // Песня из самого потока через мост; обложку ищем в iTunes (только «Исполнитель - Песня» на иврите или с .co.il)
+  async function icySong(u) {
+    const r = await fetch(BRIDGE + '/icy?u=' + encodeURIComponent(u), { cache: 'no-store' });
+    if (!r.ok) return null;
+    const raw = (await r.json()).title;
+    const name = ch && ch.name ? ch.name : '';
+    const t = songOrNull(raw, name);
+    if (!t) return null;
+    if (!t.includes(' - ')) return { title: t, artist: '', art: '' };
+    const artist = t.split(' - ')[0].trim(), title = t.slice(t.indexOf(' - ') + 3).trim();
+    const il = /[\u0590-\u05FF]/.test(t) || /\.co\.il|bynetcdn|streamtheworld|streamgates|cybercdn/i.test(u);
+    return { title, artist, art: il ? await itunesCover(artist, title) : '' };
   }
   function text(o, keys) { for (const k of keys) { const v = o && o[k]; if (typeof v === 'string' && v.trim()) return v.trim(); } return null; }
   function artistOf(o) {
@@ -329,13 +418,23 @@ const Radio = (() => {
     let s = null, more = true;
     try {
       const site = siteSource(ch.url);
-      if (site) {
+      if (site && isIl(site)) {
+        // Израильские сайты не открываются из браузера напрямую — читаем через мост; 204 — песни сейчас нет
+        const r = await fetch(BRIDGE + '/j?u=' + encodeURIComponent(site), { cache: 'no-store' });
+        if (r.status === 200) {
+          s = parseIl(await r.json(), site);
+          if (s) { const a = await itunesCover(s.artist, s.title); if (a) s.art = a; }
+        }
+      } else if (site) {
         const src = site.replace('{ts}', Math.floor(Date.now() / 1000));
         s = parseSite(await (await fetch(src, { cache: 'no-store' })).json(), src);
       } else if (/m3u8/i.test(ch.url)) {
         s = await hlsSong(ch.url);
         // В списке станции песен нет вовсе (три раза подряд) — больше его не читаем
         if (noTags >= 3) more = false;
+      } else if (/^https?:/i.test(ch.url) && !/\.(mpd|ts)(\?|$)/i.test(ch.url) && looks(ch)) {
+        // Обычный аудиопоток: название песни — из самого потока (ICY) через мост
+        s = await icySong(ch.url);
       } else more = false;
     } catch (e) { }
     if (my !== token) return;
