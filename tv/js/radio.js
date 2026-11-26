@@ -280,6 +280,10 @@ const Radio = (() => {
   function songOrNull(raw, station) {
     const t = fixHebrew((raw || '').trim());
     if (t.length < 2 || !/\p{L}/u.test(t)) return null;
+    // Станция потеряла еврейские буквы (в названии одни «¿½» и значки замены) — это не песня
+    if (/[\u00BF\u00BD\uFFFD]/.test(t)) return null;
+    const ns = t.replace(/\s/g, '');
+    if ((ns.match(/\p{L}/gu) || []).length * 2 < ns.length) return null;
     const low = t.toLowerCase();
     if (SERVICE.some(w => low.includes(w))) return null;
     let plain = plainOf(t);
